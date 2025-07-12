@@ -22,7 +22,6 @@ namespace SCE2
         {
             this.InitializeComponent();
 
-            // Extend content into the title bar
             var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(
                 Microsoft.UI.Win32Interop.GetWindowIdFromWindow(
                     WinRT.Interop.WindowNative.GetWindowHandle(this)
@@ -31,7 +30,6 @@ namespace SCE2
             appWindow.TitleBar.ExtendsContentIntoTitleBar = true;
             appWindow.TitleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0); // Transparent buttons
 
-            // Set your custom title bar UIElement
             this.SetTitleBar(CustomTitleBar);
 
             CodeEditor.SelectionChanged += (s, e) =>
@@ -177,8 +175,6 @@ namespace SCE2
             {
                 currentLanguage = language;
                 StatusBarText.Text = $"Language set to {GetLanguageDisplayName(language)}";
-                //LanguageText.Text = GetLanguageDisplayName(language);
-                //ApplySyntaxHighlighting();
             }
         }
 
