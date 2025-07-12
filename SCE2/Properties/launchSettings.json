@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "SCE2 (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "SCE2 (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
