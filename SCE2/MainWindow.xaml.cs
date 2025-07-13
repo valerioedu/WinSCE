@@ -1,242 +1,447 @@
 ﻿using Microsoft.UI;
-    using Microsoft.UI.Text;
-    using Microsoft.UI.Xaml;
-    using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Text;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
-    using Microsoft.UI.Xaml.Documents;
-    using Microsoft.UI.Xaml.Media;
-    using System;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Linq;
+using Microsoft.UI.Xaml.Documents;
+using Microsoft.UI.Xaml.Media;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Net.NetworkInformation;
-    using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using Windows.Foundation;
-    using Windows.Storage;
-    using Windows.Storage.Pickers;
-    using Windows.System;
-    using Windows.UI;
+using Windows.Storage;
+using Windows.Storage.Pickers;
+using Windows.System;
+using Windows.UI;
 
 namespace SCE2
+{
+    public class EditorState
     {
-        public sealed partial class MainWindow : Window
-        {
-            private string currentFilePath = "";
-            private string currentLanguage = "c";
-            private bool isApplyingSyntaxHighlighting = false;
-            private DispatcherTimer syntaxHighlightingTimer;
-            private string lastHighlightedText = "";
-            private readonly int MAX_HIGHLIGHT_LENGTH = 1000000; // Skip highlighting for very large files
-            private short tabs = 0;
-            private short tabsize = 4;
+        public string Text { get; set; }
+        public int CursorPosition { get; set; }
+        public int SelectionLength { get; set; }
 
-            private Grid findReplacePanel;
-            private TextBox findTextBox;
-            private TextBox replaceTextBox;
-            private TextBlock matchCountText;
-            private Button replaceButton;
-            private Button replaceAllButton;
-            private List<int> searchMatches = new List<int>();
-            private int currentMatchIndex = -1;
+        public EditorState(string text, int cursorPosition, int selectionLength = 0)
+        {
+            Text = text;
+            CursorPosition = cursorPosition;
+            SelectionLength = selectionLength;
+        }
+    }
+
+    public class UndoRedoManager
+    {
+        private readonly List<EditorState> _undoStack = new List<EditorState>();
+        private readonly List<EditorState> _redoStack = new List<EditorState>();
+        private const int MAX_UNDO_LEVELS = 100;
+
+        public bool CanUndo => _undoStack.Count > 0;
+        public bool CanRedo => _redoStack.Count > 0;
+
+        public void SaveState(EditorState state)
+        {
+            if (_undoStack.Count > 0 && _undoStack[_undoStack.Count - 1].Text == state.Text)
+                return;
+
+            _undoStack.Add(state);
+
+            if (_undoStack.Count > MAX_UNDO_LEVELS)
+            {
+                _undoStack.RemoveAt(0);
+            }
+
+            _redoStack.Clear();
+        }
+
+        public EditorState Undo(EditorState currentState)
+        {
+            if (!CanUndo) return null;
+
+            _redoStack.Add(currentState);
+
+            var state = _undoStack[_undoStack.Count - 1];
+            _undoStack.RemoveAt(_undoStack.Count - 1);
+
+            return state;
+        }
+
+        public EditorState Redo()
+        {
+            if (!CanRedo) return null;
+
+            var state = _redoStack[_redoStack.Count - 1];
+            _redoStack.RemoveAt(_redoStack.Count - 1);
+
+            _undoStack.Add(state);
+
+            return state;
+        }
+
+        public void Clear()
+        {
+            _undoStack.Clear();
+            _redoStack.Clear();
+        }
+    }
+
+    public sealed partial class MainWindow : Window
+    {
+        private string currentFilePath = "";
+        private string currentLanguage = "c";
+        private bool isApplyingSyntaxHighlighting = false;
+        private DispatcherTimer syntaxHighlightingTimer;
+        private string lastHighlightedText = "";
+        private readonly int MAX_HIGHLIGHT_LENGTH = 1000000;
+        private short tabs = 0;
+        private short tabsize = 4;
+
+        private Grid findReplacePanel;
+        private TextBox findTextBox;
+        private TextBox replaceTextBox;
+        private TextBlock matchCountText;
+        private Button replaceButton;
+        private Button replaceAllButton;
+        private List<int> searchMatches = new List<int>();
+        private int currentMatchIndex = -1;
 
         private Button toggleReplaceButton;
         private Popup replacePopup;
         private string lastStatusText = "";
         private readonly Queue<List<int>> _searchMatchesPool = new();
 
-        private readonly SolidColorBrush KeywordBrush = new SolidColorBrush(Color.FromArgb(255, 86, 156, 214)); // Blue - Types, declarations
-            private readonly SolidColorBrush ControlFlowBrush = new SolidColorBrush(Color.FromArgb(255, 216, 160, 223)); // Purple - Control flow
-            private readonly SolidColorBrush StringBrush = new SolidColorBrush(Color.FromArgb(255, 206, 145, 120)); // Orange
-            private readonly SolidColorBrush CommentBrush = new SolidColorBrush(Color.FromArgb(255, 106, 153, 85)); // Green
-            private readonly SolidColorBrush NumberBrush = new SolidColorBrush(Color.FromArgb(255, 181, 206, 168)); // Light green
-            private readonly SolidColorBrush PreprocessorBrush = new SolidColorBrush(Color.FromArgb(255, 155, 155, 155)); // Gray
-            private readonly SolidColorBrush DefaultBrush = new SolidColorBrush(Color.FromArgb(255, 220, 220, 220)); // Light gray
+        private UndoRedoManager undoRedoManager = new UndoRedoManager();
+        private bool isRestoringState = false;
+        private DateTime lastKeyTime = DateTime.MinValue;
+        private string lastSavedText = "";
+        private DispatcherTimer undoSaveTimer;
 
-            public MainWindow()
+        private readonly SolidColorBrush KeywordBrush = new SolidColorBrush(Color.FromArgb(255, 86, 156, 214));
+        private readonly SolidColorBrush ControlFlowBrush = new SolidColorBrush(Color.FromArgb(255, 216, 160, 223));
+        private readonly SolidColorBrush StringBrush = new SolidColorBrush(Color.FromArgb(255, 206, 145, 120));
+        private readonly SolidColorBrush CommentBrush = new SolidColorBrush(Color.FromArgb(255, 106, 153, 85));
+        private readonly SolidColorBrush NumberBrush = new SolidColorBrush(Color.FromArgb(255, 181, 206, 168));
+        private readonly SolidColorBrush PreprocessorBrush = new SolidColorBrush(Color.FromArgb(255, 155, 155, 155));
+        private readonly SolidColorBrush DefaultBrush = new SolidColorBrush(Color.FromArgb(255, 220, 220, 220));
+
+        public MainWindow()
+        {
+            this.InitializeComponent();
+
+            var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(
+                Microsoft.UI.Win32Interop.GetWindowIdFromWindow(
+                    WinRT.Interop.WindowNative.GetWindowHandle(this)
+                )
+            );
+            appWindow.TitleBar.ExtendsContentIntoTitleBar = true;
+            appWindow.TitleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+
+            this.SetTitleBar(CustomTitleBar);
+
+            CodeEditor.SelectionChanged += (s, e) =>
             {
-                this.InitializeComponent();
+                UpdateCursorPosition();
+            };
 
-                var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(
-                    Microsoft.UI.Win32Interop.GetWindowIdFromWindow(
-                        WinRT.Interop.WindowNative.GetWindowHandle(this)
-                    )
-                );
-                appWindow.TitleBar.ExtendsContentIntoTitleBar = true;
-                appWindow.TitleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
-
-                this.SetTitleBar(CustomTitleBar);
-
-                CodeEditor.SelectionChanged += (s, e) =>
-                {
-                    UpdateCursorPosition();
-                };
-
-                CodeEditor.TextChanged += (s, e) =>
+            CodeEditor.TextChanged += (s, e) =>
+            {
+                if (!isRestoringState)
                 {
                     UpdateLineNumbers();
                     UpdateCursorPosition();
                     ScheduleSyntaxHighlighting();
-                };
-
-                EditorScrollViewer.ViewChanged += (s, e) =>
-                {
-                    LineNumbersScrollViewer.ChangeView(
-                        null,
-                        EditorScrollViewer.VerticalOffset,
-                        null,
-                        true);
-                };
-
-                UpdateLineNumbers();
-                CreateFindReplacePanel();
-            }
-
-            private void CodeEditor_PreviewKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
-            {
-                bool isCtrlPressed = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control)
-            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-
-                if (isCtrlPressed)
-                {
-                    switch (e.Key)
-                    {
-                        case VirtualKey.S:
-                            e.Handled = true;
-                            Save_Click(null, null);
-                            break;
-                        case VirtualKey.O:
-                            e.Handled = true;
-                            Open_Click(null, null);
-                            break;
-                        case VirtualKey.N:
-                            e.Handled = true;
-                            New_Click(null, null);
-                            break;
-                        case VirtualKey.F:
-                            e.Handled = true;
-                            ShowFindPanel();
-                            break;
-                    }
-                    return;
+                    ScheduleUndoStateSave();
                 }
+            };
 
+            EditorScrollViewer.ViewChanged += (s, e) =>
+            {
+                LineNumbersScrollViewer.ChangeView(
+                    null,
+                    EditorScrollViewer.VerticalOffset,
+                    null,
+                    true);
+            };
+
+            UpdateLineNumbers();
+            CreateFindReplacePanel();
+        }
+
+        private void CodeEditor_PreviewKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            bool isCtrlPressed = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control)
+        .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+            if (isCtrlPressed)
+            {
                 switch (e.Key)
                 {
-                    case Windows.System.VirtualKey.Tab:
+                    case VirtualKey.S:
                         e.Handled = true;
-                        HandleTabKey();
+                        Save_Click(null, null);
                         break;
-                    case Windows.System.VirtualKey.Back:
-                        HandleDelKey(e);
+                    case VirtualKey.O:
+                        e.Handled = true;
+                        Open_Click(null, null);
                         break;
-                    case Windows.System.VirtualKey.Enter:
-                        HandleEnterKey();
+                    case VirtualKey.N:
+                        e.Handled = true;
+                        New_Click(null, null);
+                        break;
+                    case VirtualKey.F:
+                        e.Handled = true;
+                        ShowFindPanel();
+                        break;
+                    case VirtualKey.Z:
+                        e.Handled = true;
+                        PerformUndo();
+                        break;
+                    case VirtualKey.Y:
+                        e.Handled = true;
+                        PerformRedo();
                         break;
                 }
+                return;
             }
 
-            private void HandleEnterKey()
+            if (ShouldSaveUndoState(e.Key))
             {
-                var selection = CodeEditor.Document.Selection;
-                var cursorPosition = selection.StartPosition;
-                string text;
-                CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-                int column = GetColumnPosition(text, cursorPosition);
+                SaveCurrentStateForUndo();
             }
 
-            private void HandleDelKey(Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+            switch (e.Key)
             {
-                var selection = CodeEditor.Document.Selection;
-                int cursorPosition = selection.StartPosition;
-                string text;
-                CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+                case Windows.System.VirtualKey.Tab:
+                    e.Handled = true;
+                    HandleTabKey();
+                    break;
+                case Windows.System.VirtualKey.Back:
+                    HandleDelKey(e);
+                    break;
+                case Windows.System.VirtualKey.Enter:
+                    HandleEnterKey();
+                    break;
+            }
+        }
 
-                if (cursorPosition >= tabsize)
+        private bool ShouldSaveUndoState(VirtualKey key)
+        {
+            return key == VirtualKey.Back ||
+                   key == VirtualKey.Delete ||
+                   key == VirtualKey.Enter ||
+                   key == VirtualKey.Tab ||
+                   IsTypableKey(key);
+        }
+
+        private bool IsTypableKey(VirtualKey key)
+        {
+            return (key >= VirtualKey.A && key <= VirtualKey.Z) ||
+                   (key >= VirtualKey.Number0 && key <= VirtualKey.Number9) ||
+                   (key >= VirtualKey.NumberPad0 && key <= VirtualKey.NumberPad9) ||
+                   key == VirtualKey.Space ||
+                   key == VirtualKey.Decimal ||
+                   key == VirtualKey.Add ||
+                   key == VirtualKey.Subtract ||
+                   key == VirtualKey.Multiply ||
+                   key == VirtualKey.Divide ||
+                   (key >= (VirtualKey)186 && key <= (VirtualKey)222);
+        }
+
+        private void SaveCurrentStateForUndo()
+        {
+            if (isRestoringState) return;
+
+            string currentText;
+            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out currentText);
+
+            var selection = CodeEditor.Document.Selection;
+            var state = new EditorState(currentText, selection.StartPosition, selection.Length);
+
+            undoRedoManager.SaveState(state);
+        }
+
+        private void PerformUndo()
+        {
+            if (!undoRedoManager.CanUndo) return;
+
+            string currentText;
+            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out currentText);
+            var selection = CodeEditor.Document.Selection;
+            var currentState = new EditorState(currentText, selection.StartPosition, selection.Length);
+
+            var previousState = undoRedoManager.Undo(currentState);
+            if (previousState != null)
+            {
+                RestoreState(previousState);
+                StatusBarText.Text = "Undo";
+            }
+        }
+
+        private void PerformRedo()
+        {
+            if (!undoRedoManager.CanRedo) return;
+
+            var nextState = undoRedoManager.Redo();
+            if (nextState != null)
+            {
+                RestoreState(nextState);
+                StatusBarText.Text = "Redo";
+            }
+        }
+
+        private void RestoreState(EditorState state)
+        {
+            isRestoringState = true;
+
+            try
+            {
+                CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, state.Text);
+
+                if (state.SelectionLength > 0)
                 {
-                    int column = GetColumnPosition(text, cursorPosition);
-                    bool atTabStop = (column - 1) % tabsize == 0;
-                    if (atTabStop)
-                    {
-                        bool allSpaces = true;
-                        for (int i = 1; i <= tabsize; i++)
-                        {
-                            if (cursorPosition - i < 0 || text[cursorPosition - i] != ' ')
-                            {
-                                allSpaces = false;
-                                break;
-                            }
-                        }
+                    CodeEditor.Document.Selection.SetRange(state.CursorPosition, state.CursorPosition + state.SelectionLength);
+                }
+                else
+                {
+                    CodeEditor.Document.Selection.SetRange(state.CursorPosition, state.CursorPosition);
+                }
 
-                        if (allSpaces)
+                UpdateLineNumbers();
+                UpdateCursorPosition();
+                ApplySyntaxHighlightingImmediate();
+            }
+            finally
+            {
+                isRestoringState = false;
+            }
+        }
+
+        private void ScheduleUndoStateSave()
+        {
+            undoSaveTimer?.Stop();
+
+            if (undoSaveTimer == null)
+            {
+                undoSaveTimer = new DispatcherTimer();
+                undoSaveTimer.Interval = TimeSpan.FromSeconds(1);
+                undoSaveTimer.Tick += (s, e) =>
+                {
+                    undoSaveTimer.Stop();
+                    if (!isRestoringState)
+                    {
+                        SaveCurrentStateForUndo();
+                    }
+                };
+            }
+
+            undoSaveTimer.Start();
+        }
+
+        private void HandleEnterKey()
+        {
+            var selection = CodeEditor.Document.Selection;
+            var cursorPosition = selection.StartPosition;
+            string text;
+            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+            int column = GetColumnPosition(text, cursorPosition);
+        }
+
+        private void HandleDelKey(Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            var selection = CodeEditor.Document.Selection;
+            int cursorPosition = selection.StartPosition;
+            string text;
+            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+
+            if (cursorPosition >= tabsize)
+            {
+                int column = GetColumnPosition(text, cursorPosition);
+                bool atTabStop = (column - 1) % tabsize == 0;
+                if (atTabStop)
+                {
+                    bool allSpaces = true;
+                    for (int i = 1; i <= tabsize; i++)
+                    {
+                        if (cursorPosition - i < 0 || text[cursorPosition - i] != ' ')
                         {
-                            e.Handled = true;
-                            var range = CodeEditor.Document.GetRange(cursorPosition - tabsize, cursorPosition);
-                            range.Text = "";
-                            tabs--;
-                            return;
+                            allSpaces = false;
+                            break;
                         }
+                    }
+
+                    if (allSpaces)
+                    {
+                        e.Handled = true;
+                        var range = CodeEditor.Document.GetRange(cursorPosition - tabsize, cursorPosition);
+                        range.Text = "";
+                        tabs--;
+                        return;
                     }
                 }
             }
+        }
 
-            private void HandleTabKey()
+        private void HandleTabKey()
+        {
+            var selection = CodeEditor.Document.Selection;
+            var cursorPosition = selection.StartPosition;
+
+            string text;
+            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+
+            int column = GetColumnPosition(text, cursorPosition);
+
+            int spacesToAdd = tabsize - ((column - 1) % tabsize);
+
+            for (int i = 0; i < spacesToAdd; i++)
             {
-                var selection = CodeEditor.Document.Selection;
-                var cursorPosition = selection.StartPosition;
+                selection.TypeText(" ");
+            }
+            tabs++;
+        }
 
-                string text;
-                CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+        private int GetColumnPosition(string text, int cursorPosition)
+        {
+            int column = 1;
+            for (int i = cursorPosition - 1; i >= 0; i--)
+            {
+                if (text[i] == '\n' || text[i] == '\r')
+                    break;
+                column++;
+            }
+            return column;
+        }
 
-                int column = GetColumnPosition(text, cursorPosition);
+        private void ScheduleSyntaxHighlighting()
+        {
+            syntaxHighlightingTimer?.Stop();
 
-                int spacesToAdd = tabsize - ((column - 1) % tabsize);
-
-                for (int i = 0; i < spacesToAdd; i++)
+            if (syntaxHighlightingTimer == null)
+            {
+                syntaxHighlightingTimer = new DispatcherTimer();
+                syntaxHighlightingTimer.Tick += (s, e) =>
                 {
-                    selection.TypeText(" ");
-                }
-                tabs++;
+                    syntaxHighlightingTimer.Stop();
+                    ApplySyntaxHighlighting();
+                };
             }
 
-            private int GetColumnPosition(string text, int cursorPosition)
-            {
-                int column = 1;
-                for (int i = cursorPosition - 1; i >= 0; i--)
-                {
-                    if (text[i] == '\n' || text[i] == '\r')
-                        break;
-                    column++;
-                }
-                return column;
-            }
+            syntaxHighlightingTimer.Start();
+        }
 
-            private void ScheduleSyntaxHighlighting()
-            {
-                syntaxHighlightingTimer?.Stop();
+        private void ApplySyntaxHighlightingImmediate()
+        {
+            syntaxHighlightingTimer?.Stop();
 
-                if (syntaxHighlightingTimer == null)
-                {
-                    syntaxHighlightingTimer = new DispatcherTimer();
-                    syntaxHighlightingTimer.Tick += (s, e) =>
-                    {
-                        syntaxHighlightingTimer.Stop();
-                        ApplySyntaxHighlighting();
-                    };
-                }
+            lastHighlightedText = "";
+            ApplySyntaxHighlighting();
+        }
 
-                syntaxHighlightingTimer.Start();
-            }
-
-            private void ApplySyntaxHighlightingImmediate()
-            {
-                syntaxHighlightingTimer?.Stop();
-
-                lastHighlightedText = "";
-                ApplySyntaxHighlighting();
-            }
-
-            private void ApplySyntaxHighlighting()
-            {
+        private void ApplySyntaxHighlighting()
+        {
             if (isApplyingSyntaxHighlighting) return;
 
             isApplyingSyntaxHighlighting = true;
@@ -256,9 +461,7 @@ namespace SCE2
                 int selectionStart = selection.StartPosition;
                 int selectionEnd = selection.EndPosition;
 
-            CodeEditor.Document.BeginUndoGroup();
-
-            var range = CodeEditor.Document.GetRange(0, text.Length);
+                var range = CodeEditor.Document.GetRange(0, text.Length);
                 range.CharacterFormat.ForegroundColor = DefaultBrush.Color;
 
                 var patterns = GetSyntaxPatterns(currentLanguage);
@@ -273,9 +476,7 @@ namespace SCE2
                     }
                 }
 
-            CodeEditor.Document.EndUndoGroup();
-
-            CodeEditor.Document.Selection.SetRange(selectionStart, selectionEnd);
+                CodeEditor.Document.Selection.SetRange(selectionStart, selectionEnd);
             }
             catch (Exception ex)
             {
@@ -285,324 +486,332 @@ namespace SCE2
             {
                 isApplyingSyntaxHighlighting = false;
             }
+        }
+
+        private List<SyntaxPattern> GetSyntaxPatterns(string language)
+        {
+            var patterns = new List<SyntaxPattern>();
+
+            switch (language)
+            {
+                case "c":
+                    patterns.AddRange(new[]
+                    {
+                        new SyntaxPattern(@"^\s*#\s*\w+", PreprocessorBrush.Color),
+                        new SyntaxPattern(@"\b\d+\.?\d*[fFlL]?\b", NumberBrush.Color),
+                        new SyntaxPattern(@"\b0[xX][0-9a-fA-F]+\b", NumberBrush.Color),
+                        new SyntaxPattern(@"\b(if|else|for|while|do|switch|case|default|break|continue|goto|return)\b", ControlFlowBrush.Color),
+                        new SyntaxPattern(@"\b(int|char|float|double|void|struct|enum|typedef|const|static|extern|auto|register|volatile|sizeof|union|long|short|signed|unsigned)\b", KeywordBrush.Color),
+                        new SyntaxPattern(@"""(?:[^""\\]|\\.)*""", StringBrush.Color),
+                        new SyntaxPattern(@"'(?:[^'\\]|\\.)*'", StringBrush.Color),
+                        new SyntaxPattern(@"//.*?(?=\r|\n|$)", CommentBrush.Color),
+                        new SyntaxPattern(@"/\*[\s\S]*?\*/", CommentBrush.Color),
+                    });
+                    break;
+
+                case "cpp":
+                    patterns.AddRange(new[]
+                    {
+                        new SyntaxPattern(@"^\s*#\s*\w+", PreprocessorBrush.Color),
+                        new SyntaxPattern(@"\b\d+\.?\d*[fFlL]?\b", NumberBrush.Color),
+                        new SyntaxPattern(@"\b0[xX][0-9a-fA-F]+\b", NumberBrush.Color),
+                        new SyntaxPattern(@"\b(if|else|for|while|do|switch|case|default|break|continue|goto|return|try|catch|throw|true|false)\b", ControlFlowBrush.Color),
+                        new SyntaxPattern(@"\b(int|char|float|double|void|bool|class|struct|enum|typedef|const|static|extern|auto|template|namespace|using|public|private|protected|virtual|override|new|delete|nullptr)\b", KeywordBrush.Color),
+                        new SyntaxPattern(@"""(?:[^""\\]|\\.)*""", StringBrush.Color),
+                        new SyntaxPattern(@"'(?:[^'\\]|\\.)*'", StringBrush.Color),
+                        new SyntaxPattern(@"//.*?(?=\r|\n|$)", CommentBrush.Color),
+                        new SyntaxPattern(@"/\*[\s\S]*?\*/", CommentBrush.Color)
+                    });
+                    break;
+
+                case "csharp":
+                    patterns.AddRange(new[]
+                    {
+                        new SyntaxPattern(@"'(?:[^'\\]|\\.)*'", StringBrush.Color),
+                        new SyntaxPattern(@"\b\d+\.?\d*[fFdDmM]?\b", NumberBrush.Color),
+                        new SyntaxPattern(@"\b0[xX][0-9a-fA-F]+\b", NumberBrush.Color),
+                        new SyntaxPattern(@"\b(if|else|for|foreach|while|do|switch|case|default|break|continue|goto|return|try|catch|throw|finally|true|false|null)\b", ControlFlowBrush.Color),
+                        new SyntaxPattern(@"\b(int|char|float|double|decimal|string|bool|void|var|class|struct|enum|interface|namespace|using|public|private|protected|internal|static|abstract|virtual|override|new|this|base|typeof|sizeof)\b", KeywordBrush.Color),
+                        new SyntaxPattern(@"""(?:[^""\\]|\\.)*""", StringBrush.Color),
+                        new SyntaxPattern(@"@""(?:[^""]|"""")*""", StringBrush.Color),
+                        new SyntaxPattern(@"//.*?(?=\r|\n|$)", CommentBrush.Color),
+                        new SyntaxPattern(@"/\*[\s\S]*?\*/", CommentBrush.Color)
+                    });
+                    break;
             }
 
-            private List<SyntaxPattern> GetSyntaxPatterns(string language)
-            {
-                var patterns = new List<SyntaxPattern>();
+            return patterns;
+        }
 
-                switch (language)
+        private void UpdateCursorPosition()
+        {
+            string text;
+            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+            var selection = CodeEditor.Document.Selection;
+            int cursorIndex = selection.StartPosition;
+
+            var position = GetCursorPosition(text, cursorIndex);
+            char last = cursorIndex > 0 && text.Length > 0 ? text[Math.Min(cursorIndex - 1, text.Length - 1)] : '\0';
+            if (last > 27 && last < 128)
+                StatusBarText.Text = $"Ln {position.line}, Col {position.column}, Key: {last}";
+            else
+                StatusBarText.Text = $"Ln {position.line}, Col {position.column}";
+        }
+
+        private void UpdateLineNumbers()
+        {
+            string text;
+            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+            var selection = CodeEditor.Document.Selection;
+            int cursorIndex = selection.StartPosition;
+
+            var position = GetCursorPosition(text, cursorIndex);
+            int line = position.line;
+            int column = position.column;
+
+            int lineCount = 1;
+            for (int i = 0; i < text.Length - 1; i++)
+            {
+                if (text[i] == '\r' || text[i] == '\n')
                 {
-                    case "c":
-                        patterns.AddRange(new[]
-                        {
-                            new SyntaxPattern(@"^\s*#\s*\w+", PreprocessorBrush.Color),
-                            new SyntaxPattern(@"\b\d+\.?\d*[fFlL]?\b", NumberBrush.Color),
-                            new SyntaxPattern(@"\b0[xX][0-9a-fA-F]+\b", NumberBrush.Color),
-                            new SyntaxPattern(@"\b(if|else|for|while|do|switch|case|default|break|continue|goto|return)\b", ControlFlowBrush.Color),
-                            new SyntaxPattern(@"\b(int|char|float|double|void|struct|enum|typedef|const|static|extern|auto|register|volatile|sizeof|union|long|short|signed|unsigned)\b", KeywordBrush.Color),
-                            new SyntaxPattern(@"""(?:[^""\\]|\\.)*""", StringBrush.Color),
-                            new SyntaxPattern(@"'(?:[^'\\]|\\.)*'", StringBrush.Color),
-                            new SyntaxPattern(@"//.*?(?=\r|\n|$)", CommentBrush.Color),
-                            new SyntaxPattern(@"/\*[\s\S]*?\*/", CommentBrush.Color),
-                        });
-                        break;
-
-                    case "cpp":
-                        patterns.AddRange(new[]
-                        {
-                            new SyntaxPattern(@"^\s*#\s*\w+", PreprocessorBrush.Color),
-                            new SyntaxPattern(@"\b\d+\.?\d*[fFlL]?\b", NumberBrush.Color),
-                            new SyntaxPattern(@"\b0[xX][0-9a-fA-F]+\b", NumberBrush.Color),
-                            new SyntaxPattern(@"\b(if|else|for|while|do|switch|case|default|break|continue|goto|return|try|catch|throw|true|false)\b", ControlFlowBrush.Color),
-                            new SyntaxPattern(@"\b(int|char|float|double|void|bool|class|struct|enum|typedef|const|static|extern|auto|template|namespace|using|public|private|protected|virtual|override|new|delete|nullptr)\b", KeywordBrush.Color),
-                            new SyntaxPattern(@"""(?:[^""\\]|\\.)*""", StringBrush.Color),
-                            new SyntaxPattern(@"'(?:[^'\\]|\\.)*'", StringBrush.Color),
-                            new SyntaxPattern(@"//.*?(?=\r|\n|$)", CommentBrush.Color),
-                            new SyntaxPattern(@"/\*[\s\S]*?\*/", CommentBrush.Color)
-                        });
-                        break;
-
-                    case "csharp":
-                        patterns.AddRange(new[]
-                        {
-                            new SyntaxPattern(@"'(?:[^'\\]|\\.)*'", StringBrush.Color),
-                            new SyntaxPattern(@"\b\d+\.?\d*[fFdDmM]?\b", NumberBrush.Color),
-                            new SyntaxPattern(@"\b0[xX][0-9a-fA-F]+\b", NumberBrush.Color),
-                            new SyntaxPattern(@"\b(if|else|for|foreach|while|do|switch|case|default|break|continue|goto|return|try|catch|throw|finally|true|false|null)\b", ControlFlowBrush.Color),
-                            new SyntaxPattern(@"\b(int|char|float|double|decimal|string|bool|void|var|class|struct|enum|interface|namespace|using|public|private|protected|internal|static|abstract|virtual|override|new|this|base|typeof|sizeof)\b", KeywordBrush.Color),
-                            new SyntaxPattern(@"""(?:[^""\\]|\\.)*""", StringBrush.Color),
-                            new SyntaxPattern(@"@""(?:[^""]|"""")*""", StringBrush.Color),
-                            new SyntaxPattern(@"//.*?(?=\r|\n|$)", CommentBrush.Color),
-                            new SyntaxPattern(@"/\*[\s\S]*?\*/", CommentBrush.Color)
-                        });
-                        break;
+                    lineCount++;
+                    if (text[i] == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
+                        i++;
                 }
-
-                return patterns;
             }
 
-            private void UpdateCursorPosition()
+            string lineNumbers = "";
+            for (int i = 1; i <= lineCount; i++)
             {
-                string text;
-                CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-                var selection = CodeEditor.Document.Selection;
-                int cursorIndex = selection.StartPosition;
+                lineNumbers += i + "\n";
+            }
 
-                var position = GetCursorPosition(text, cursorIndex);
-                char last = cursorIndex > 0 && text.Length > 0 ? text[Math.Min(cursorIndex - 1, text.Length - 1)] : '\0';
-                if (last > 27 && last < 128)
-                    StatusBarText.Text = $"Ln {position.line}, Col {position.column}, Key: {last}";
+            if (string.IsNullOrEmpty(lineNumbers))
+            {
+                lineNumbers = "1";
+            }
+
+            LineNumbers.Text = lineNumbers;
+        }
+
+        private (int line, int column) GetCursorPosition(string text, int cursorIndex)
+        {
+            int line = 1;
+            int column = 1;
+
+            for (int i = 0; i < cursorIndex && i < text.Length; i++)
+            {
+                if (text[i] == '\r')
+                {
+                    line++;
+                    column = 1;
+                }
                 else
-                    StatusBarText.Text = $"Ln {position.line}, Col {position.column}";
-            }
-
-            private void UpdateLineNumbers()
-            {
-                string text;
-                CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-                var selection = CodeEditor.Document.Selection;
-                int cursorIndex = selection.StartPosition;
-
-                var position = GetCursorPosition(text, cursorIndex);
-                int line = position.line;
-                int column = position.column;
-
-                int lineCount = 1;
-                for (int i = 0; i < text.Length - 1; i++)
                 {
-                    if (text[i] == '\r' || text[i] == '\n')
-                    {
-                        lineCount++;
-                        if (text[i] == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
-                            i++;
-                    }
-                }
-
-                string lineNumbers = "";
-                for (int i = 1; i <= lineCount; i++)
-                {
-                    lineNumbers += i + "\n";
-                }
-
-                if (string.IsNullOrEmpty(lineNumbers))
-                {
-                    lineNumbers = "1";
-                }
-
-                LineNumbers.Text = lineNumbers;
-            }
-
-            private (int line, int column) GetCursorPosition(string text, int cursorIndex)
-            {
-                int line = 1;
-                int column = 1;
-
-                for (int i = 0; i < cursorIndex && i < text.Length; i++)
-                {
-                    if (text[i] == '\r')
-                    {
-                        line++;
-                        column = 1;
-                    }
-                    else
-                    {
-                        column++;
-                    }
-                }
-
-                return (line, column);
-            }
-
-            public int MyProperty
-            {
-                get => throw new NotImplementedException();
-                set => throw new NotImplementedException();
-            }
-
-            private async void Open_Click(object sender, RoutedEventArgs e)
-            {
-                var picker = new FileOpenPicker();
-                picker.ViewMode = PickerViewMode.List;
-                picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
-                picker.FileTypeFilter.Add("*");
-
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-                WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-
-                StorageFile file = await picker.PickSingleFileAsync();
-                if (file != null)
-                {
-                    string text = await FileIO.ReadTextAsync(file);
-                    CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, text);
-                    currentFilePath = file.Path;
-
-                    DetectLanguageFromFile(file.Name);
-
-                    ApplySyntaxHighlightingImmediate();
-
-                    StatusBarText.Text = $"Opened: {file.Name}";
+                    column++;
                 }
             }
-            private string GetTemplateForLanguage(string language)
-            {
-                return language switch
-                {
-                    "c" => "#include <stdio.h>\n\nint main() {\n    printf(\"Hello, World!\\n\");\n    return 0;\n}",
-                    "cpp" => "#include <iostream>\n\nint main() {\n    std::cout << \"Hello, World!\" << std::endl;\n    return 0;\n}",
-                    "csharp" => "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine(\"Hello, World!\");\n    }\n}",
-                    _ => "#include <iostream>\n\nint main() {\n    std::cout << \"Hello, World!\" << std::endl;\n    return 0;\n}"
-                };
-            }
 
-            // Event handlers
-            private void New_Click(object sender, RoutedEventArgs e)
-            {
-                CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, GetTemplateForLanguage(currentLanguage));
-                currentFilePath = "";
+            return (line, column);
+        }
 
+        public int MyProperty
+        {
+            get => throw new NotImplementedException();
+            set => throw new NotImplementedException();
+        }
+
+        private async void Open_Click(object sender, RoutedEventArgs e)
+        {
+            var picker = new FileOpenPicker();
+            picker.ViewMode = PickerViewMode.List;
+            picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+            picker.FileTypeFilter.Add("*");
+
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+
+            StorageFile file = await picker.PickSingleFileAsync();
+            if (file != null)
+            {
+                string text = await FileIO.ReadTextAsync(file);
+
+                undoRedoManager.Clear();
+
+                CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, text);
+                currentFilePath = file.Path;
+
+                DetectLanguageFromFile(file.Name);
                 ApplySyntaxHighlightingImmediate();
 
-                StatusBarText.Text = "New file created";
+                SaveCurrentStateForUndo();
+
+                StatusBarText.Text = $"Opened: {file.Name}";
             }
-
-            private void DetectLanguageFromFile(string fileName)
+        }
+        private string GetTemplateForLanguage(string language)
+        {
+            return language switch
             {
-                string extension = System.IO.Path.GetExtension(fileName).ToLower();
-                string detectedLanguage = extension switch
-                {
-                    ".c" or ".h" => "c",
-                    ".cpp" or ".cxx" or ".cc" or ".hpp" or ".hxx" => "cpp",
-                    ".cs" => "csharp",
-                    _ => currentLanguage
-                };
+                "c" => "#include <stdio.h>\n\nint main() {\n    printf(\"Hello, World!\\n\");\n    return 0;\n}",
+                "cpp" => "#include <iostream>\n\nint main() {\n    std::cout << \"Hello, World!\" << std::endl;\n    return 0;\n}",
+                "csharp" => "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine(\"Hello, World!\");\n    }\n}",
+                _ => "#include <iostream>\n\nint main() {\n    std::cout << \"Hello, World!\" << std::endl;\n    return 0;\n}"
+            };
+        }
 
-                if (detectedLanguage != currentLanguage)
-                {
-                    currentLanguage = detectedLanguage;
-                    StatusBarText.Text = $"Language auto-detected: {GetLanguageDisplayName(currentLanguage)}";
-                }
+        // Event handlers
+        private void New_Click(object sender, RoutedEventArgs e)
+        {
+            undoRedoManager.Clear();
+
+            CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, GetTemplateForLanguage(currentLanguage));
+            currentFilePath = "";
+
+            ApplySyntaxHighlightingImmediate();
+
+            SaveCurrentStateForUndo();
+
+            StatusBarText.Text = "New file created";
+        }
+
+        private void DetectLanguageFromFile(string fileName)
+        {
+            string extension = System.IO.Path.GetExtension(fileName).ToLower();
+            string detectedLanguage = extension switch
+            {
+                ".c" or ".h" => "c",
+                ".cpp" or ".cxx" or ".cc" or ".hpp" or ".hxx" => "cpp",
+                ".cs" => "csharp",
+                _ => currentLanguage
+            };
+
+            if (detectedLanguage != currentLanguage)
+            {
+                currentLanguage = detectedLanguage;
+                StatusBarText.Text = $"Language auto-detected: {GetLanguageDisplayName(currentLanguage)}";
             }
+        }
 
-            private void SetLanguage_Click(object sender, RoutedEventArgs e)
+        private void SetLanguage_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuFlyoutItem item && item.Tag is string language)
             {
-                if (sender is MenuFlyoutItem item && item.Tag is string language)
-                {
-                    currentLanguage = language;
-                    StatusBarText.Text = $"Language set to {GetLanguageDisplayName(language)}";
+                currentLanguage = language;
+                StatusBarText.Text = $"Language set to {GetLanguageDisplayName(language)}";
 
-                    ApplySyntaxHighlightingImmediate();
-                }
+                ApplySyntaxHighlightingImmediate();
             }
+        }
 
-            private string GetLanguageDisplayName(string language)
+        private string GetLanguageDisplayName(string language)
+        {
+            return language switch
             {
-                return language switch
-                {
-                    "c" => "C",
-                    "cpp" => "C++",
-                    "csharp" => "C#",
-                    _ => "C"
-                };
+                "c" => "C",
+                "cpp" => "C++",
+                "csharp" => "C#",
+                _ => "C"
+            };
+        }
+
+        private async void Save_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(currentFilePath)) await SaveAsFile();
+            else await SaveCurrentFile();
+        }
+
+        private async System.Threading.Tasks.Task SaveAsFile()
+        {
+            var picker = new FileSavePicker();
+            picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+            picker.FileTypeChoices.Add("C file", new[] { ".c" });
+            picker.FileTypeChoices.Add("C++ file", new[] { ".cpp" });
+            picker.FileTypeChoices.Add("C# file", new[] { ".cs" });
+            //picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+
+            StorageFile file = await picker.PickSaveFileAsync();
+            if (file != null)
+            {
+                string text;
+                CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+                await FileIO.WriteTextAsync(file, text);
+                currentFilePath = file.Path;
+                StatusBarText.Text = $"Saved: {file.Name}";
             }
+        }
 
-            private async void Save_Click(object sender, RoutedEventArgs e)
+        private async System.Threading.Tasks.Task SaveCurrentFile()
+        {
+            if (!string.IsNullOrEmpty(currentFilePath))
             {
-                if (string.IsNullOrEmpty(currentFilePath)) await SaveAsFile();
-                else await SaveCurrentFile();
+                var file = await StorageFile.GetFileFromPathAsync(currentFilePath);
+                string text;
+                CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+                await FileIO.WriteTextAsync(file, text);
+                StatusBarText.Text = "File saved";
             }
+        }
 
-            private async System.Threading.Tasks.Task SaveAsFile()
+        public class SyntaxPattern
+        {
+            public string Pattern { get; set; }
+            public Color Color { get; set; }
+
+            public SyntaxPattern(string pattern, Color color)
             {
-                var picker = new FileSavePicker();
-                picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
-                picker.FileTypeChoices.Add("C file", new[] { ".c" });
-                picker.FileTypeChoices.Add("C++ file", new[] { ".cpp" });
-                picker.FileTypeChoices.Add("C# file", new[] { ".cs" });
-                //picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+                Pattern = pattern;
+                Color = color;
+            }
+        }
 
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-                WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-
-                StorageFile file = await picker.PickSaveFileAsync();
-                if (file != null)
-                {
+        private void CodeEditor_CharacterReceived(UIElement sender, Microsoft.UI.Xaml.Input.CharacterReceivedRoutedEventArgs args)
+        {
+            switch (args.Character)
+            {
+                case '{':
+                    var selection = CodeEditor.Document.Selection;
+                    selection.TypeText("}");
+                    selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
+                    break;
+                case '(':
+                    selection = CodeEditor.Document.Selection;
+                    selection.TypeText(")");
+                    selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
+                    break;
+                case '[':
+                    selection = CodeEditor.Document.Selection;
+                    selection.TypeText("]");
+                    selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
+                    break;
+                case '"':
+                    selection = CodeEditor.Document.Selection;
+                    selection.TypeText("\"");
+                    selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
+                    break;
+                case '\'':
+                    selection = CodeEditor.Document.Selection;
+                    selection.TypeText("'");
+                    selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
+                    break;
+                case '*':
                     string text;
                     CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-                    await FileIO.WriteTextAsync(file, text);
-                    currentFilePath = file.Path;
-                    StatusBarText.Text = $"Saved: {file.Name}";
-                }
+                    selection = CodeEditor.Document.Selection;
+                    int cursorPosition = selection.StartPosition;
+
+                    if (cursorPosition > 0 && text[cursorPosition - 2] == '/')
+                    {
+                        selection.TypeText("*/");
+                        selection.SetRange(cursorPosition, cursorPosition);
+                    }
+                    break;
             }
 
-            private async System.Threading.Tasks.Task SaveCurrentFile()
-            {
-                if (!string.IsNullOrEmpty(currentFilePath))
-                {
-                    var file = await StorageFile.GetFileFromPathAsync(currentFilePath);
-                    string text;
-                    CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-                    await FileIO.WriteTextAsync(file, text);
-                    StatusBarText.Text = "File saved";
-                }
-            }
-
-            public class SyntaxPattern
-            {
-                public string Pattern { get; set; }
-                public Color Color { get; set; }
-
-                public SyntaxPattern(string pattern, Color color)
-                {
-                    Pattern = pattern;
-                    Color = color;
-                }
-            }
-
-            private void CodeEditor_CharacterReceived(UIElement sender, Microsoft.UI.Xaml.Input.CharacterReceivedRoutedEventArgs args)
-            {
-                switch (args.Character)
-                {
-                    case '{':
-                        var selection = CodeEditor.Document.Selection;
-                        selection.TypeText("}");
-                        selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
-                        break;
-                    case '(':
-                        selection = CodeEditor.Document.Selection;
-                        selection.TypeText(")");
-                        selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
-                        break;
-                    case '[':
-                        selection = CodeEditor.Document.Selection;
-                        selection.TypeText("]");
-                        selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
-                        break;
-                    case '"':
-                        selection = CodeEditor.Document.Selection;
-                        selection.TypeText("\"");
-                        selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
-                        break;
-                    case '\'':
-                        selection = CodeEditor.Document.Selection;
-                        selection.TypeText("'");
-                        selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
-                        break;
-                    case '*':
-                        string text;
-                        CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-                        selection = CodeEditor.Document.Selection;
-                        int cursorPosition = selection.StartPosition;
-
-                        if (cursorPosition > 0 && text[cursorPosition - 2] == '/')
-                        {
-                            selection.TypeText("*/");
-                            selection.SetRange(cursorPosition, cursorPosition);
-                        }
-                        break;
-                }
-
-            }
+        }
 
         void CreateFindReplacePanel()
         {
@@ -866,18 +1075,18 @@ namespace SCE2
 
 
         private void FindTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var searchTerm = findTextBox.Text;
+            if (string.IsNullOrEmpty(searchTerm))
             {
-                var searchTerm = findTextBox.Text;
-                if (string.IsNullOrEmpty(searchTerm))
-                {
-                    searchMatches.Clear();
-                    currentMatchIndex = -1;
-                    matchCountText.Text = "";
-                    findReplacePanel.Width = 420;
+                searchMatches.Clear();
+                currentMatchIndex = -1;
+                matchCountText.Text = "";
+                findReplacePanel.Width = 420;
                 return;
-                }
-                SearchText(searchTerm);
             }
+            SearchText(searchTerm);
+        }
 
         private void SearchText(string searchTerm)
         {
@@ -919,115 +1128,115 @@ namespace SCE2
             }
         }
 
-            private double GetLineHeight()
+        private double GetLineHeight()
+        {
+            try
             {
-                try
-                {
-                    string text;
-                    CodeEditor.Document.GetText(TextGetOptions.None, out text);
-
-                    if (string.IsNullOrEmpty(text))
-                    {
-                        CodeEditor.Document.SetText(TextSetOptions.None, "A");
-                        var tempRange = CodeEditor.Document.GetRange(0, 1);
-                        tempRange.GetRect(PointOptions.None, out Rect tempRect, out int tempHit);
-                        CodeEditor.Document.SetText(TextSetOptions.None, "");
-                        return tempRect.Height;
-                    }
-                    else
-                    {
-                        var range = CodeEditor.Document.GetRange(0, 1);
-                        range.GetRect(PointOptions.None, out Rect rect, out int hit);
-                        return rect.Height;
-                    }
-                }
-                catch
-                {
-                    return CodeEditor.FontSize * 1.2;
-                }
-            }
-
-            private void ScrollToCurrentMatch()
-            {
-                if (currentMatchIndex < 0 || currentMatchIndex >= searchMatches.Count) return;
-
-                int matchPos = searchMatches[currentMatchIndex];
                 string text;
-                CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+                CodeEditor.Document.GetText(TextGetOptions.None, out text);
 
-                int lineNumber = 1;
-                for (int i = 0; i < matchPos && i < text.Length; i++)
+                if (string.IsNullOrEmpty(text))
                 {
-                    if (text[i] == '\r' || text[i] == '\n')
-                    {
-                        lineNumber++;
-                        if (text[i] == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
-                            i++;
-                    }
+                    CodeEditor.Document.SetText(TextSetOptions.None, "A");
+                    var tempRange = CodeEditor.Document.GetRange(0, 1);
+                    tempRange.GetRect(PointOptions.None, out Rect tempRect, out int tempHit);
+                    CodeEditor.Document.SetText(TextSetOptions.None, "");
+                    return tempRect.Height;
                 }
-
-                double estimatedLineHeight = GetLineHeight();
-                double targetVerticalOffset = (lineNumber - 1) * estimatedLineHeight;
-
-                double viewportHeight = EditorScrollViewer.ViewportHeight;
-                double centeredOffset = Math.Max(0, targetVerticalOffset - (viewportHeight / 2));
-
-                EditorScrollViewer.ChangeView(null, targetVerticalOffset, null, true);
+                else
+                {
+                    var range = CodeEditor.Document.GetRange(0, 1);
+                    range.GetRect(PointOptions.None, out Rect rect, out int hit);
+                    return rect.Height;
+                }
             }
-
-            private void FindNext()
+            catch
             {
-                if (searchMatches.Count == 0) return;
-                currentMatchIndex = (currentMatchIndex + 1) % searchMatches.Count;
-                HighlightMatch();
-                ScrollToCurrentMatch();
-            }
-
-            private void FindPrevious()
-            {
-                if (searchMatches.Count == 0) return;
-                currentMatchIndex = currentMatchIndex == 0 ? searchMatches.Count - 1 : currentMatchIndex - 1;
-                HighlightMatch();
-                ScrollToCurrentMatch();
-            }
-
-            private void HighlightMatch()
-            {
-                if (currentMatchIndex < 0 || currentMatchIndex >= searchMatches.Count) return;
-
-                int matchPos = searchMatches[currentMatchIndex];
-                string searchTerm = findTextBox.Text;
-
-                CodeEditor.Document.Selection.SetRange(matchPos, matchPos + searchTerm.Length);
-                matchCountText.Text = $"{currentMatchIndex + 1} of {searchMatches.Count}";
-            }
-
-            private void ReplaceNext()
-            {
-                if (currentMatchIndex < 0 || string.IsNullOrEmpty(replaceTextBox.Text)) return;
-
-                var selection = CodeEditor.Document.Selection;
-                selection.TypeText(replaceTextBox.Text);
-
-                SearchText(findTextBox.Text);
-            }
-
-            private void ReplaceAll()
-            {
-                if (searchMatches.Count == 0 || string.IsNullOrEmpty(replaceTextBox.Text)) return;
-
-                string text;
-                CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-
-                string newText = text.Replace(findTextBox.Text, replaceTextBox.Text, StringComparison.OrdinalIgnoreCase);
-                CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, newText);
-
-                int replacements = searchMatches.Count;
-                StatusBarText.Text = $"Replaced {replacements} occurrences";
-
-                searchMatches.Clear();
-                currentMatchIndex = -1;
-                matchCountText.Text = "";
+                return CodeEditor.FontSize * 1.2;
             }
         }
+
+        private void ScrollToCurrentMatch()
+        {
+            if (currentMatchIndex < 0 || currentMatchIndex >= searchMatches.Count) return;
+
+            int matchPos = searchMatches[currentMatchIndex];
+            string text;
+            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+
+            int lineNumber = 1;
+            for (int i = 0; i < matchPos && i < text.Length; i++)
+            {
+                if (text[i] == '\r' || text[i] == '\n')
+                {
+                    lineNumber++;
+                    if (text[i] == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
+                        i++;
+                }
+            }
+
+            double estimatedLineHeight = GetLineHeight();
+            double targetVerticalOffset = (lineNumber - 1) * estimatedLineHeight;
+
+            double viewportHeight = EditorScrollViewer.ViewportHeight;
+            double centeredOffset = Math.Max(0, targetVerticalOffset - (viewportHeight / 2));
+
+            EditorScrollViewer.ChangeView(null, targetVerticalOffset, null, true);
+        }
+
+        private void FindNext()
+        {
+            if (searchMatches.Count == 0) return;
+            currentMatchIndex = (currentMatchIndex + 1) % searchMatches.Count;
+            HighlightMatch();
+            ScrollToCurrentMatch();
+        }
+
+        private void FindPrevious()
+        {
+            if (searchMatches.Count == 0) return;
+            currentMatchIndex = currentMatchIndex == 0 ? searchMatches.Count - 1 : currentMatchIndex - 1;
+            HighlightMatch();
+            ScrollToCurrentMatch();
+        }
+
+        private void HighlightMatch()
+        {
+            if (currentMatchIndex < 0 || currentMatchIndex >= searchMatches.Count) return;
+
+            int matchPos = searchMatches[currentMatchIndex];
+            string searchTerm = findTextBox.Text;
+
+            CodeEditor.Document.Selection.SetRange(matchPos, matchPos + searchTerm.Length);
+            matchCountText.Text = $"{currentMatchIndex + 1} of {searchMatches.Count}";
+        }
+
+        private void ReplaceNext()
+        {
+            if (currentMatchIndex < 0 || string.IsNullOrEmpty(replaceTextBox.Text)) return;
+
+            var selection = CodeEditor.Document.Selection;
+            selection.TypeText(replaceTextBox.Text);
+
+            SearchText(findTextBox.Text);
+        }
+
+        private void ReplaceAll()
+        {
+            if (searchMatches.Count == 0 || string.IsNullOrEmpty(replaceTextBox.Text)) return;
+
+            string text;
+            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+
+            string newText = text.Replace(findTextBox.Text, replaceTextBox.Text, StringComparison.OrdinalIgnoreCase);
+            CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, newText);
+
+            int replacements = searchMatches.Count;
+            StatusBarText.Text = $"Replaced {replacements} occurrences";
+
+            searchMatches.Clear();
+            currentMatchIndex = -1;
+            matchCountText.Text = "";
+        }
     }
+}
