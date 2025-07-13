@@ -1,6 +1,8 @@
-﻿    using Microsoft.UI.Text;
+﻿using Microsoft.UI;
+    using Microsoft.UI.Text;
     using Microsoft.UI.Xaml;
     using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
     using Microsoft.UI.Xaml.Documents;
     using Microsoft.UI.Xaml.Media;
     using System;
@@ -9,12 +11,11 @@
     using System.Linq;
 using System.Net.NetworkInformation;
     using System.Text.RegularExpressions;
-using Windows.Foundation; // Add this line
+using Windows.Foundation;
     using Windows.Storage;
     using Windows.Storage.Pickers;
     using Windows.System;
     using Windows.UI;
-using Microsoft.UI;
 
 namespace SCE2
     {
@@ -38,7 +39,12 @@ namespace SCE2
             private List<int> searchMatches = new List<int>();
             private int currentMatchIndex = -1;
 
-            private readonly SolidColorBrush KeywordBrush = new SolidColorBrush(Color.FromArgb(255, 86, 156, 214)); // Blue - Types, declarations
+        private Button toggleReplaceButton;
+        private Popup replacePopup;
+        private string lastStatusText = "";
+        private readonly Queue<List<int>> _searchMatchesPool = new();
+
+        private readonly SolidColorBrush KeywordBrush = new SolidColorBrush(Color.FromArgb(255, 86, 156, 214)); // Blue - Types, declarations
             private readonly SolidColorBrush ControlFlowBrush = new SolidColorBrush(Color.FromArgb(255, 216, 160, 223)); // Purple - Control flow
             private readonly SolidColorBrush StringBrush = new SolidColorBrush(Color.FromArgb(255, 206, 145, 120)); // Orange
             private readonly SolidColorBrush CommentBrush = new SolidColorBrush(Color.FromArgb(255, 106, 153, 85)); // Green
@@ -231,50 +237,54 @@ namespace SCE2
 
             private void ApplySyntaxHighlighting()
             {
-                if (isApplyingSyntaxHighlighting) return;
+            if (isApplyingSyntaxHighlighting) return;
 
-                isApplyingSyntaxHighlighting = true;
+            isApplyingSyntaxHighlighting = true;
 
-                try
+            try
+            {
+                string text;
+                CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+
+                if (text.Length > MAX_HIGHLIGHT_LENGTH) return;
+
+                if (text == lastHighlightedText) return;
+
+                lastHighlightedText = text;
+
+                var selection = CodeEditor.Document.Selection;
+                int selectionStart = selection.StartPosition;
+                int selectionEnd = selection.EndPosition;
+
+            CodeEditor.Document.BeginUndoGroup();
+
+            var range = CodeEditor.Document.GetRange(0, text.Length);
+                range.CharacterFormat.ForegroundColor = DefaultBrush.Color;
+
+                var patterns = GetSyntaxPatterns(currentLanguage);
+
+                foreach (var pattern in patterns)
                 {
-                    string text;
-                    CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-
-                    if (text.Length > MAX_HIGHLIGHT_LENGTH) return;
-
-                    if (text == lastHighlightedText) return;
-
-                    lastHighlightedText = text;
-
-                    var selection = CodeEditor.Document.Selection;
-                    int selectionStart = selection.StartPosition;
-                    int selectionEnd = selection.EndPosition;
-
-                    var range = CodeEditor.Document.GetRange(0, text.Length);
-                    range.CharacterFormat.ForegroundColor = DefaultBrush.Color;
-
-                    var patterns = GetSyntaxPatterns(currentLanguage);
-
-                    foreach (var pattern in patterns)
+                    var matches = Regex.Matches(text, pattern.Pattern, RegexOptions.IgnoreCase | RegexOptions.Multiline);
+                    foreach (Match match in matches)
                     {
-                        var matches = Regex.Matches(text, pattern.Pattern, RegexOptions.IgnoreCase | RegexOptions.Multiline);
-                        foreach (Match match in matches)
-                        {
-                            var highlightRange = CodeEditor.Document.GetRange(match.Index, match.Index + match.Length);
-                            highlightRange.CharacterFormat.ForegroundColor = pattern.Color;
-                        }
+                        var highlightRange = CodeEditor.Document.GetRange(match.Index, match.Index + match.Length);
+                        highlightRange.CharacterFormat.ForegroundColor = pattern.Color;
                     }
+                }
 
-                    CodeEditor.Document.Selection.SetRange(selectionStart, selectionEnd);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Syntax highlighting error: {ex.Message}");
-                }
-                finally
-                {
-                    isApplyingSyntaxHighlighting = false;
-                }
+            CodeEditor.Document.EndUndoGroup();
+
+            CodeEditor.Document.Selection.SetRange(selectionStart, selectionEnd);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Syntax highlighting error: {ex.Message}");
+            }
+            finally
+            {
+                isApplyingSyntaxHighlighting = false;
+            }
             }
 
             private List<SyntaxPattern> GetSyntaxPatterns(string language)
@@ -594,192 +604,268 @@ namespace SCE2
 
             }
 
-            void CreateFindReplacePanel()
+        void CreateFindReplacePanel()
+        {
+            findReplacePanel = new Grid()
             {
-                findReplacePanel = new Grid()
-                {
-                    Height = 100,
-                    Visibility = Visibility.Collapsed,
-                    VerticalAlignment = VerticalAlignment.Top,
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                    Margin = new Thickness(0)
-                };
+                Height = 50,
+                Visibility = Visibility.Collapsed,
+                VerticalAlignment = VerticalAlignment.Top,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Margin = new Thickness(0)
+            };
 
-                findReplacePanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-                findReplacePanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-
-                var findRow = new StackPanel()
-                {
-                    Orientation = Orientation.Horizontal,
-                    Margin = new Thickness(10, 8, 10, 4),
-                    Spacing = 8
-                };
-
-                findTextBox = new TextBox()
-                {
-                    PlaceholderText = "Find",
-                    Width = 200,
-                    Height = 26,
-                    BorderThickness = new Thickness(0)
-                };
-
-                findTextBox.Resources["TextControlBorderBrushFocused"] = new SolidColorBrush(Colors.Transparent);
-                findTextBox.Resources["TextControlBorderBrushPointerOver"] = new SolidColorBrush(Colors.Transparent);
-
-                var findPrevButton = new Button()
-                {
-                    Content = "▲",
-                    Width = 34,
-                    Height = 26,
-                    CornerRadius = new CornerRadius(0)
-                };
-
-                var findNextButton = new Button()
-                {
-                    Content = "▼",
-                    Width = 34,
-                    Height = 26,
-                    FontSize = 12,
-                    CornerRadius = new CornerRadius(0)
-                };
-
-                matchCountText = new TextBlock()
-                {
-                    Text = "",
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, 0, 0, 0),
-                    UseSystemFocusVisuals = false
-                };
-
-                var closeButton = new Button()
-                {
-                    Content = "✕",
-                    Width = 34,
-                    Height = 26,
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    FontSize = 12,
-                    Padding = new Thickness(0),
-                    CornerRadius = new CornerRadius(0)
-                };
-
-                findRow.Children.Add(findTextBox);
-                findRow.Children.Add(findPrevButton);
-                findRow.Children.Add(findNextButton);
-                findRow.Children.Add(matchCountText);
-                findRow.Children.Add(closeButton);
-
-                Grid.SetRow(findRow, 0);
-                findReplacePanel.Children.Add(findRow);
-
-                var replaceRow = new StackPanel()
-                {
-                    Orientation = Orientation.Horizontal,
-                    Margin = new Thickness(10, 4, 10, 4),
-                    Spacing = 8
-                };
-
-                replaceTextBox = new TextBox()
-                {
-                    PlaceholderText = "Replace",
-                    Width = 200,
-                    Height = 26,
-                    BorderThickness = new Thickness(0)
-                };
-
-                replaceTextBox.Resources["TextControlBorderBrushFocused"] = new SolidColorBrush(Colors.Transparent);
-                replaceTextBox.Resources["TextControlBorderBrushPointerOver"] = new SolidColorBrush(Colors.Transparent);
-
-                replaceButton = new Button()
-                {
-                    Content = "Replace",
-                    Height = 32,
-                    CornerRadius = new CornerRadius(0)
-                };
-
-                replaceAllButton = new Button()
-                {
-                    Content = "Replace All",
-                    Height = 32,
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    CornerRadius = new CornerRadius(0)
-                };
-
-                replaceRow.Children.Add(replaceTextBox);
-                replaceRow.Children.Add(replaceButton);
-                replaceRow.Children.Add(replaceAllButton);
-
-                Grid.SetRow(replaceRow, 1);
-                findReplacePanel.Children.Add(replaceRow);
-
-                findTextBox.TextChanged += FindTextBox_TextChanged;
-                findPrevButton.Click += (s, e) => FindPrevious();
-                findNextButton.Click += (s, e) => FindNext();
-                replaceButton.Click += (s, e) => ReplaceNext();
-                replaceAllButton.Click += (s, e) => ReplaceAll();
-                closeButton.Click += (s, e) => HideFindPanel();
-
-                findTextBox.KeyDown += (s, e) =>
-                {
-                    if (e.Key == VirtualKey.Enter)
-                    {
-                        FindNext();
-                        e.Handled = true;
-                    }
-                    else if (e.Key == VirtualKey.Escape)
-                    {
-                        HideFindPanel();
-                        e.Handled = true;
-                    }
-                };
-
-                replaceTextBox.KeyDown += (s, e) =>
-                {
-                    if (e.Key == VirtualKey.Enter)
-                    {
-                        ReplaceNext();
-                        e.Handled = true;
-                    }
-                    else if (e.Key == VirtualKey.Escape)
-                    {
-                        HideFindPanel();
-                        e.Handled = true;
-                    }
-                };
-            }
-
-            private void ShowFindPanel()
+            var findRow = new StackPanel()
             {
-                if (findReplacePanel.Parent == null)
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(10, 8, 10, 4),
+                Spacing = 8,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            toggleReplaceButton = new Button()
+            {
+                Content = "▶",
+                Width = 34,
+                Height = 26,
+                FontSize = 11,
+                CornerRadius = new CornerRadius(0)
+            };
+            ToolTipService.SetToolTip(toggleReplaceButton, "Show Replace Options");
+
+            findTextBox = new TextBox()
+            {
+                PlaceholderText = "Find",
+                Width = 200,
+                Height = 26,
+                BorderThickness = new Thickness(0)
+            };
+
+            findTextBox.Resources["TextControlBorderBrushFocused"] = new SolidColorBrush(Colors.Transparent);
+            findTextBox.Resources["TextControlBorderBrushPointerOver"] = new SolidColorBrush(Colors.Transparent);
+
+            var findPrevButton = new Button()
+            {
+                Content = "▲",
+                Width = 34,
+                Height = 26,
+                FontSize = 11,
+                CornerRadius = new CornerRadius(0)
+            };
+
+            var findNextButton = new Button()
+            {
+                Content = "▼",
+                Width = 34,
+                Height = 26,
+                FontSize = 11,
+                CornerRadius = new CornerRadius(0)
+            };
+
+            matchCountText = new TextBlock()
+            {
+                Text = "",
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 0),
+                UseSystemFocusVisuals = false
+            };
+
+            var closeButton = new Button()
+            {
+                Content = "✕",
+                Width = 34,
+                Height = 26,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                FontSize = 12,
+                Padding = new Thickness(0),
+                CornerRadius = new CornerRadius(0)
+            };
+
+            CreateReplacePopup();
+
+            findRow.Children.Add(toggleReplaceButton);
+            findRow.Children.Add(findTextBox);
+            findRow.Children.Add(findPrevButton);
+            findRow.Children.Add(findNextButton);
+            findRow.Children.Add(matchCountText);
+            findRow.Children.Add(closeButton);
+
+            findReplacePanel.Children.Add(findRow);
+
+            findTextBox.TextChanged += FindTextBox_TextChanged;
+            findPrevButton.Click += (s, e) => FindPrevious();
+            findNextButton.Click += (s, e) => FindNext();
+            toggleReplaceButton.Click += ToggleReplaceButton_Click;
+            closeButton.Click += (s, e) => HideFindPanel();
+
+            findTextBox.KeyDown += (s, e) =>
+            {
+                if (e.Key == VirtualKey.Enter)
                 {
-                    var mainGrid = (Grid)this.Content;
-                    Grid.SetRow(findReplacePanel, 1);
-                    Grid.SetColumn(findReplacePanel, 1);
-                    Grid.SetColumnSpan(findReplacePanel, 1);
-                    findReplacePanel.HorizontalAlignment = HorizontalAlignment.Right;
-                    findReplacePanel.Width = 406;
-                    mainGrid.Children.Add(findReplacePanel);
+                    FindNext();
+                    e.Handled = true;
                 }
-
-                findReplacePanel.Visibility = Visibility.Visible;
-                findTextBox.Focus(FocusState.Programmatic);
-
-                var selection = CodeEditor.Document.Selection;
-                if (selection.Length > 0)
+                else if (e.Key == VirtualKey.Escape)
                 {
-                    string selectedText;
-                    selection.GetText(Microsoft.UI.Text.TextGetOptions.None, out selectedText);
-                    findTextBox.Text = selectedText;
-                    findTextBox.SelectAll();
+                    HideFindPanel();
+                    e.Handled = true;
                 }
-            }
+            };
+        }
 
-            private void HideFindPanel()
+        private void CreateReplacePopup()
+        {
+            replacePopup = new Popup()
             {
-                findReplacePanel.Visibility = Visibility.Collapsed;
-                CodeEditor.Focus(FocusState.Programmatic);
+                IsLightDismissEnabled = false
+            };
+
+            var replaceContainer = new Border()
+            {
+                Background = new SolidColorBrush(Colors.Transparent),
+                BorderBrush = new SolidColorBrush(Colors.Transparent),
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(0),
+                Padding = new Thickness(8)
+            };
+
+            var replaceRow = new StackPanel()
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 8
+            };
+
+            replaceTextBox = new TextBox()
+            {
+                PlaceholderText = "Replace",
+                Width = 200,
+                Height = 26,
+                BorderThickness = new Thickness(0),
+                Foreground = new SolidColorBrush(Colors.White)
+            };
+
+            replaceTextBox.Resources["TextControlBorderBrushFocused"] = new SolidColorBrush(Colors.Transparent);
+            replaceTextBox.Resources["TextControlBorderBrushPointerOver"] = new SolidColorBrush(Colors.Transparent);
+
+            replaceButton = new Button()
+            {
+                Content = "Replace",
+                Height = 28,
+                MinWidth = 60,
+                FontSize = 11,
+                CornerRadius = new CornerRadius(0)
+            };
+
+            replaceAllButton = new Button()
+            {
+                Content = "Replace All",
+                Height = 28,
+                MinWidth = 80,
+                FontSize = 11,
+                CornerRadius = new CornerRadius(0)
+            };
+
+            replaceRow.Children.Add(replaceTextBox);
+            replaceRow.Children.Add(replaceButton);
+            replaceRow.Children.Add(replaceAllButton);
+
+            replaceContainer.Child = replaceRow;
+            replacePopup.Child = replaceContainer;
+
+            replaceButton.Click += (s, e) => ReplaceNext();
+            replaceAllButton.Click += (s, e) => ReplaceAll();
+
+            replaceTextBox.KeyDown += (s, e) =>
+            {
+                if (e.Key == VirtualKey.Enter)
+                {
+                    ReplaceNext();
+                    e.Handled = true;
+                }
+                else if (e.Key == VirtualKey.Escape)
+                {
+                    HideReplacePopup();
+                    e.Handled = true;
+                }
+            };
+        }
+
+        private void ToggleReplaceButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (replacePopup.IsOpen)
+            {
+                HideReplacePopup();
+            }
+            else
+            {
+                ShowReplacePopup();
+            }
+        }
+
+        private void ShowReplacePopup()
+        {
+            if (toggleReplaceButton != null)
+            {
+                replacePopup.XamlRoot = this.Content.XamlRoot;
+
+                var transform = findTextBox.TransformToVisual(null);
+                var position = transform.TransformPoint(new Point(0, 0));
+
+                replacePopup.HorizontalOffset = position.X - 8;
+                replacePopup.VerticalOffset = position.Y + toggleReplaceButton.ActualHeight + 5;
+                replacePopup.IsOpen = true;
+
+                toggleReplaceButton.Content = "▼";
+                ToolTipService.SetToolTip(toggleReplaceButton, "Hide Replace Options");
+
+                replaceTextBox.Focus(FocusState.Programmatic);
+            }
+        }
+
+        private void HideReplacePopup()
+        {
+            replacePopup.IsOpen = false;
+            toggleReplaceButton.Content = "▶";
+            ToolTipService.SetToolTip(toggleReplaceButton, "Show Replace Options");
+
+            findTextBox.Focus(FocusState.Programmatic);
+        }
+
+        private void ShowFindPanel()
+        {
+            if (findReplacePanel.Parent == null)
+            {
+                var mainGrid = (Grid)this.Content;
+                Grid.SetRow(findReplacePanel, 1);
+                Grid.SetColumn(findReplacePanel, 1);
+                Grid.SetColumnSpan(findReplacePanel, 1);
+                findReplacePanel.HorizontalAlignment = HorizontalAlignment.Right;
+                findReplacePanel.Width = 420;
+                mainGrid.Children.Add(findReplacePanel);
             }
 
-            private void FindTextBox_TextChanged(object sender, TextChangedEventArgs e)
+            findReplacePanel.Visibility = Visibility.Visible;
+            findTextBox.Focus(FocusState.Programmatic);
+
+            var selection = CodeEditor.Document.Selection;
+            if (selection.Length > 0)
+            {
+                string selectedText;
+                selection.GetText(Microsoft.UI.Text.TextGetOptions.None, out selectedText);
+                findTextBox.Text = selectedText;
+                findTextBox.SelectAll();
+            }
+        }
+
+        private void HideFindPanel()
+        {
+            findReplacePanel.Visibility = Visibility.Collapsed;
+            HideReplacePopup();
+            CodeEditor.Focus(FocusState.Programmatic);
+        }
+
+
+        private void FindTextBox_TextChanged(object sender, TextChangedEventArgs e)
             {
                 var searchTerm = findTextBox.Text;
                 if (string.IsNullOrEmpty(searchTerm))
@@ -787,38 +873,51 @@ namespace SCE2
                     searchMatches.Clear();
                     currentMatchIndex = -1;
                     matchCountText.Text = "";
-                    return;
+                    findReplacePanel.Width = 420;
+                return;
                 }
                 SearchText(searchTerm);
             }
 
-            private void SearchText(string searchTerm)
+        private void SearchText(string searchTerm)
+        {
+            searchMatches.Clear();
+            currentMatchIndex = -1;
+
+            string text;
+            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+
+            int index = 0;
+            while ((index = text.IndexOf(searchTerm, index, StringComparison.OrdinalIgnoreCase)) != -1)
             {
-                searchMatches.Clear();
-                currentMatchIndex = -1;
+                searchMatches.Add(index);
+                index += searchTerm.Length;
+            }
 
-                string text;
-                CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-
-                int index = 0;
-                while ((index = text.IndexOf(searchTerm, index, StringComparison.OrdinalIgnoreCase)) != -1)
+            if (searchMatches.Count > 0)
+            {
+                matchCountText.Text = $"{searchMatches.Count} results";
+                currentMatchIndex = 0;
+                HighlightMatch();
+                if (searchMatches.Count < 10)
                 {
-                    searchMatches.Add(index);
-                    index += searchTerm.Length;
+                    findReplacePanel.Width = 420;
                 }
-
-                if (searchMatches.Count > 0)
+                else if (searchMatches.Count >= 10 && searchMatches.Count < 100)
                 {
-                    matchCountText.Text = $"{searchMatches.Count} results";
-                    currentMatchIndex = 0;
-                    HighlightMatch();
+                    findReplacePanel.Width = 440;
                 }
                 else
                 {
-                    matchCountText.Text = "No results";
-                    findReplacePanel.Width = 420;
+                    findReplacePanel.Width = 452;
                 }
             }
+            else
+            {
+                matchCountText.Text = "No results";
+                findReplacePanel.Width = 460;
+            }
+        }
 
             private double GetLineHeight()
             {
