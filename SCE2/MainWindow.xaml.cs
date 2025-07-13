@@ -1,19 +1,22 @@
-﻿    using System;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Linq;
-    using System.Text.RegularExpressions;
+﻿    using Microsoft.UI.Text;
     using Microsoft.UI.Xaml;
     using Microsoft.UI.Xaml.Controls;
     using Microsoft.UI.Xaml.Documents;
     using Microsoft.UI.Xaml.Media;
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+using System.Net.NetworkInformation;
+    using System.Text.RegularExpressions;
+using Windows.Foundation; // Add this line
     using Windows.Storage;
     using Windows.Storage.Pickers;
-    using Microsoft.UI.Text;
-    using Windows.UI;
     using Windows.System;
+    using Windows.UI;
+using Microsoft.UI;
 
-    namespace SCE2
+namespace SCE2
     {
         public sealed partial class MainWindow : Window
         {
@@ -616,8 +619,12 @@
                 {
                     PlaceholderText = "Find",
                     Width = 200,
-                    Height = 26
+                    Height = 26,
+                    BorderThickness = new Thickness(0)
                 };
+
+                findTextBox.Resources["TextControlBorderBrushFocused"] = new SolidColorBrush(Colors.Transparent);
+                findTextBox.Resources["TextControlBorderBrushPointerOver"] = new SolidColorBrush(Colors.Transparent);
 
                 var findPrevButton = new Button()
                 {
@@ -676,8 +683,11 @@
                     PlaceholderText = "Replace",
                     Width = 200,
                     Height = 26,
-                    UseSystemFocusVisuals = false,
+                    BorderThickness = new Thickness(0)
                 };
+
+                replaceTextBox.Resources["TextControlBorderBrushFocused"] = new SolidColorBrush(Colors.Transparent);
+                replaceTextBox.Resources["TextControlBorderBrushPointerOver"] = new SolidColorBrush(Colors.Transparent);
 
                 replaceButton = new Button()
                 {
@@ -808,13 +818,70 @@
                     matchCountText.Text = "No results";
                     findReplacePanel.Width = 420;
                 }
-        }
+            }
+
+            private double GetLineHeight()
+            {
+                try
+                {
+                    string text;
+                    CodeEditor.Document.GetText(TextGetOptions.None, out text);
+
+                    if (string.IsNullOrEmpty(text))
+                    {
+                        CodeEditor.Document.SetText(TextSetOptions.None, "A");
+                        var tempRange = CodeEditor.Document.GetRange(0, 1);
+                        tempRange.GetRect(PointOptions.None, out Rect tempRect, out int tempHit);
+                        CodeEditor.Document.SetText(TextSetOptions.None, "");
+                        return tempRect.Height;
+                    }
+                    else
+                    {
+                        var range = CodeEditor.Document.GetRange(0, 1);
+                        range.GetRect(PointOptions.None, out Rect rect, out int hit);
+                        return rect.Height;
+                    }
+                }
+                catch
+                {
+                    return CodeEditor.FontSize * 1.2;
+                }
+            }
+
+            private void ScrollToCurrentMatch()
+            {
+                if (currentMatchIndex < 0 || currentMatchIndex >= searchMatches.Count) return;
+
+                int matchPos = searchMatches[currentMatchIndex];
+                string text;
+                CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+
+                int lineNumber = 1;
+                for (int i = 0; i < matchPos && i < text.Length; i++)
+                {
+                    if (text[i] == '\r' || text[i] == '\n')
+                    {
+                        lineNumber++;
+                        if (text[i] == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
+                            i++;
+                    }
+                }
+
+                double estimatedLineHeight = GetLineHeight();
+                double targetVerticalOffset = (lineNumber - 1) * estimatedLineHeight;
+
+                double viewportHeight = EditorScrollViewer.ViewportHeight;
+                double centeredOffset = Math.Max(0, targetVerticalOffset - (viewportHeight / 2));
+
+                EditorScrollViewer.ChangeView(null, targetVerticalOffset, null, true);
+            }
 
             private void FindNext()
             {
                 if (searchMatches.Count == 0) return;
                 currentMatchIndex = (currentMatchIndex + 1) % searchMatches.Count;
                 HighlightMatch();
+                ScrollToCurrentMatch();
             }
 
             private void FindPrevious()
@@ -822,6 +889,7 @@
                 if (searchMatches.Count == 0) return;
                 currentMatchIndex = currentMatchIndex == 0 ? searchMatches.Count - 1 : currentMatchIndex - 1;
                 HighlightMatch();
+                ScrollToCurrentMatch();
             }
 
             private void HighlightMatch()
