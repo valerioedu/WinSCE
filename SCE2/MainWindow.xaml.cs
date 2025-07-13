@@ -203,6 +203,41 @@ namespace SCE2
                         e.Handled = true;
                         PerformRedo();
                         break;
+                    case VirtualKey.L:
+                        e.Handled = true;
+
+                        try
+                        {
+                            var selection = CodeEditor.Document.Selection;
+                            int cursorPosition = selection.StartPosition;
+                            string text;
+                            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+
+                            int lineStart = cursorPosition;
+                            while (lineStart > 0 && text[lineStart - 1] != '\n' && text[lineStart - 1] != '\r')
+                            {
+                                lineStart--;
+                            }
+
+                            int lineEnd = cursorPosition;
+                            while (lineEnd < text.Length && text[lineEnd] != '\n' && text[lineEnd] != '\r')
+                            {
+                                lineEnd++;
+                            }
+
+                            if (lineEnd < text.Length && (text[lineEnd] == '\n' || text[lineEnd] == '\r'))
+                            {
+                                lineEnd++;
+                                if (lineEnd < text.Length && text[lineEnd - 1] == '\r' && text[lineEnd] == '\n')
+                                {
+                                    lineEnd++;
+                                }
+                            }
+
+                            CodeEditor.Document.Selection.SetRange(lineStart, lineEnd);
+                        }
+                        catch { }
+                        break;
                 }
                 return;
             }
@@ -276,7 +311,6 @@ namespace SCE2
             if (previousState != null)
             {
                 RestoreState(previousState);
-                StatusBarText.Text = "Undo";
             }
         }
 
@@ -288,7 +322,6 @@ namespace SCE2
             if (nextState != null)
             {
                 RestoreState(nextState);
-                StatusBarText.Text = "Redo";
             }
         }
 
