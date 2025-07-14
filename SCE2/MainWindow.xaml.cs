@@ -126,6 +126,8 @@ namespace SCE2
         private readonly SolidColorBrush NumberBrush = new SolidColorBrush(Color.FromArgb(255, 181, 206, 168));
         private readonly SolidColorBrush PreprocessorBrush = new SolidColorBrush(Color.FromArgb(255, 155, 155, 155));
         private readonly SolidColorBrush DefaultBrush = new SolidColorBrush(Color.FromArgb(255, 220, 220, 220));
+        private readonly SolidColorBrush FunctionBrush = new SolidColorBrush(Color.FromArgb(255, 220, 220, 170));
+        private readonly SolidColorBrush EscapeSequenceBrush = new SolidColorBrush(Color.FromArgb(255, 255, 206, 84));
 
         public MainWindow()
         {
@@ -530,13 +532,16 @@ namespace SCE2
                 case "c":
                     patterns.AddRange(new[]
                     {
-                        new SyntaxPattern(@"^\s*#\s*\w+", PreprocessorBrush.Color),
                         new SyntaxPattern(@"\b\d+\.?\d*[fFlL]?\b", NumberBrush.Color),
                         new SyntaxPattern(@"\b0[xX][0-9a-fA-F]+\b", NumberBrush.Color),
+                        new SyntaxPattern(@"\b([a-zA-Z_]\w*)\s*(?=\()", FunctionBrush.Color),
                         new SyntaxPattern(@"\b(if|else|for|while|do|switch|case|default|break|continue|goto|return)\b", ControlFlowBrush.Color),
                         new SyntaxPattern(@"\b(int|char|float|double|void|struct|enum|typedef|const|static|extern|auto|register|volatile|sizeof|union|long|short|signed|unsigned)\b", KeywordBrush.Color),
+                        new SyntaxPattern(@"^\s*#\s*\w+", PreprocessorBrush.Color),
                         new SyntaxPattern(@"""(?:[^""\\]|\\.)*""", StringBrush.Color),
+                        new SyntaxPattern(@"(?<=#\s*include\s*)[<""][^>""]+[>""]", StringBrush.Color),
                         new SyntaxPattern(@"'(?:[^'\\]|\\.)*'", StringBrush.Color),
+                        new SyntaxPattern(@"\\[abfnrtv\\'\""]", EscapeSequenceBrush.Color),
                         new SyntaxPattern(@"//.*?(?=\r|\n|$)", CommentBrush.Color),
                         new SyntaxPattern(@"/\*[\s\S]*?\*/", CommentBrush.Color),
                     });
