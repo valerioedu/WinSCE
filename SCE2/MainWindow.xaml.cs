@@ -74,9 +74,9 @@ namespace SCE2
 
             CodeEditor.TextChanged += (s, e) =>
             {
-                    UpdateLineNumbers();
-                    UpdateCursorPosition();
-                    ScheduleSyntaxHighlighting();
+                UpdateLineNumbers();
+                UpdateCursorPosition();
+                ScheduleSyntaxHighlighting();
             };
 
             EditorScrollViewer.ViewChanged += (s, e) =>
@@ -178,16 +178,93 @@ namespace SCE2
             string text;
             CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
 
-            if (cursorPosition < text.Length - 1 &&
+            string currentIndentation = GetCurrentLineIndentation(text, cursorPosition);
+
+            if (cursorPosition > 0 && cursorPosition < text.Length &&
                 text[cursorPosition - 1] == '{' && text[cursorPosition] == '}')
             {
                 e.Handled = true;
-                selection.TypeText("\n");
-                HandleTabKey();
-                int newCursorPosition = selection.StartPosition;
-                selection.TypeText("\n");
+
+                string indentedText = "\n" + currentIndentation + GetIndentString() + "\n" + currentIndentation;
+                selection.TypeText(indentedText);
+
+                int newCursorPosition = cursorPosition + currentIndentation.Length + GetIndentString().Length + 1;
                 selection.SetRange(newCursorPosition, newCursorPosition);
             }
+            else
+            {
+                bool shouldIndentNext = ShouldIndentNextLine(text, cursorPosition);
+
+                e.Handled = true;
+
+                if (shouldIndentNext)
+                {
+                    string indentedText = "\n" + currentIndentation + GetIndentString();
+                    selection.TypeText(indentedText);
+                }
+                else
+                {
+                    string indentedText = "\n" + currentIndentation;
+                    selection.TypeText(indentedText);
+                }
+            }
+        }
+
+        private string GetCurrentLineIndentation(string text, int cursorPosition)
+        {
+            int lineStart = cursorPosition;
+            while (lineStart > 0 && text[lineStart - 1] != '\n' && text[lineStart - 1] != '\r')
+            {
+                lineStart--;
+            }
+
+            string indentation = "";
+            for (int i = lineStart; i < text.Length && (text[i] == ' ' || text[i] == '\t'); i++)
+            {
+                indentation += text[i];
+            }
+
+            return indentation;
+        }
+
+        private bool ShouldIndentNextLine(string text, int cursorPosition)
+        {
+            int lineStart = cursorPosition;
+            while (lineStart > 0 && text[lineStart - 1] != '\n' && text[lineStart - 1] != '\r')
+            {
+                lineStart--;
+            }
+
+            string lineContent = "";
+            for (int i = lineStart; i < cursorPosition && i < text.Length; i++)
+            {
+                lineContent += text[i];
+            }
+
+            string trimmedLine = lineContent.TrimEnd();
+
+            return trimmedLine.EndsWith("{") ||
+                   trimmedLine.EndsWith(":") ||
+                   IsControlStructure(trimmedLine);
+        }
+
+        private bool IsControlStructure(string line)
+        {
+            string trimmed = line.Trim();
+
+            return trimmed.StartsWith("if ") ||
+                   trimmed.StartsWith("else") ||
+                   trimmed.StartsWith("while ") ||
+                   trimmed.StartsWith("for ") ||
+                   trimmed.StartsWith("do") ||
+                   trimmed.StartsWith("switch ") ||
+                   trimmed.StartsWith("case ") ||
+                   trimmed.StartsWith("default:");
+        }
+
+        private string GetIndentString()
+        {
+            return new string(' ', tabsize);
         }
 
         private void HandleDelKey(Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
