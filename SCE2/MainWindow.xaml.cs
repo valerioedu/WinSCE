@@ -166,18 +166,28 @@ namespace SCE2
                     HandleDelKey(e);
                     break;
                 case Windows.System.VirtualKey.Enter:
-                    HandleEnterKey();
+                    HandleEnterKey(e);
                     break;
             }
         }
 
-        private void HandleEnterKey()
+        private void HandleEnterKey(Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
             var selection = CodeEditor.Document.Selection;
             var cursorPosition = selection.StartPosition;
             string text;
             CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-            int column = GetColumnPosition(text, cursorPosition);
+
+            if (cursorPosition < text.Length - 1 &&
+                text[cursorPosition - 1] == '{' && text[cursorPosition] == '}')
+            {
+                e.Handled = true;
+                selection.TypeText("\n");
+                HandleTabKey();
+                int newCursorPosition = selection.StartPosition;
+                selection.TypeText("\n");
+                selection.SetRange(newCursorPosition, newCursorPosition);
+            }
         }
 
         private void HandleDelKey(Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
