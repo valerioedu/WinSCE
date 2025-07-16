@@ -54,7 +54,7 @@
                 <Button Content="Settings" Padding="8,0" Margin="2,0,0,0" FontSize="13"
                         Background="Transparent" BorderThickness="0"
                         VerticalAlignment="Stretch" VerticalContentAlignment="Center"
-                        HorizontalContentAlignment="Center" CornerRadius="0" />
+                        HorizontalContentAlignment="Center" CornerRadius="0" Click="Settings_Click"/>
             </StackPanel>
 
             <!-- Area vuota per i pulsanti di controllo della finestra -->

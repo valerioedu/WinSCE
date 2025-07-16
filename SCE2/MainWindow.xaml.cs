@@ -398,5 +398,11 @@ namespace SCE2
                 return CodeEditor.FontSize * 1.2;
             }
         }
+
+        private void Settings_Click(object sender, RoutedEventArgs e)
+        {
+            SettingsWindow settingsWindow = new SettingsWindow();
+            settingsWindow.Activate();
+        }
     }
 }
