@@ -28,7 +28,6 @@
             </NavigationView.MenuItems>
 
             <Grid x:Name="SettingsContentGrid">
-                <!-- General Settings Panel -->
                 <ScrollViewer x:Name="GeneralPanel" Visibility="Visible">
                     <StackPanel Margin="20" Spacing="20">
                         <TextBlock Text="General Settings" Style="{ThemeResource TitleTextBlockStyle}"/>
@@ -38,7 +37,7 @@
 
                             <ToggleSwitch x:Name="AutoSaveToggle" 
                                         Header="Auto-save session" 
-                                        IsOn="True"
+                                        IsOn="False"
                                         OnContent="Enabled" 
                                         OffContent="Disabled"/>
 
@@ -62,6 +61,16 @@
                                         OnContent="Enabled" 
                                         OffContent="Disabled"
                                         Margin="0,10,0,0"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                            <Button x:Name="ResetGeneralButton" 
+                                  Content="Reset to Defaults" 
+                                  Click="ResetToDefaults_Click"/>
+                            <Button x:Name="ApplyGeneralButton" 
+                                  Content="Apply Settings" 
+                                  Style="{ThemeResource AccentButtonStyle}"
+                                  Click="ApplySettings_Click"/>
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
@@ -121,7 +130,7 @@
                                         OnContent="Enabled" 
                                         OffContent="Disabled"/>
                         </StackPanel>
-
+                        
                         <StackPanel Spacing="10">
                             <TextBlock Text="Available Features" Style="{ThemeResource SubtitleTextBlockStyle}"/>
 

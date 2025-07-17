@@ -119,7 +119,7 @@ namespace SCE2
             LineNumbersToggle.IsOn = true;
             WordWrapToggle.IsOn = false;
 
-            AutoSaveToggle.IsOn = true;
+            AutoSaveToggle.IsOn = false;
             RestoreSessionToggle.IsOn = true;
             AutoSaveIntervalNumberBox.Value = 30;
         }

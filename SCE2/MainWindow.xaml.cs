@@ -34,12 +34,11 @@ namespace SCE2
         private bool autoBraceClosingEnabled = true;
         private bool lineNumbersEnabled = true;
         private bool wordWrapEnabled = false;
-
-        // New settings for auto-save and session restore
-        private bool autoSaveEnabled = true;
+        
+        private bool autoSaveEnabled = false;
         private bool restoreSessionEnabled = true;
         private DispatcherTimer autoSaveTimer;
-        private int autoSaveInterval = 30; // Auto-save interval in seconds (user configurable)
+        private int autoSaveInterval = 30;
         private bool hasUnsavedChanges = false;
 
         private Grid findReplacePanel;
@@ -607,7 +606,7 @@ namespace SCE2
                 lineNumbersEnabled = (bool)(localSettings.Values["LineNumbers"] ?? true);
                 wordWrapEnabled = (bool)(localSettings.Values["WordWrap"] ?? false);
 
-                autoSaveEnabled = (bool)(localSettings.Values["AutoSave"] ?? true);
+                autoSaveEnabled = (bool)(localSettings.Values["AutoSave"] ?? false);
                 restoreSessionEnabled = (bool)(localSettings.Values["RestoreSession"] ?? true);
                 autoSaveInterval = (int)(localSettings.Values["AutoSaveInterval"] ?? 30);
             }
@@ -619,7 +618,7 @@ namespace SCE2
                 autoBraceClosingEnabled = true;
                 lineNumbersEnabled = true;
                 wordWrapEnabled = false;
-                autoSaveEnabled = true;
+                autoSaveEnabled = false;
                 restoreSessionEnabled = true;
                 autoSaveInterval = 30;
             }
