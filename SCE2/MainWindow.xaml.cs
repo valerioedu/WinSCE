@@ -27,7 +27,19 @@ namespace SCE2
         private DispatcherTimer syntaxHighlightingTimer;
         private string lastHighlightedText = "";
         private readonly int MAX_HIGHLIGHT_LENGTH = 1000000;
+
         private short tabsize = 4;
+        private bool autoIndentationEnabled = true;
+        private bool autoCompletionEnabled = true;
+        private bool autoBraceClosingEnabled = true;
+        private bool lineNumbersEnabled = true;
+        private bool wordWrapEnabled = false;
+
+        private bool autoSaveEnabled = true;
+        private bool restoreSessionEnabled = true;
+        private DispatcherTimer autoSaveTimer;
+        private readonly int AUTO_SAVE_INTERVAL_SECONDS = 30;
+        private bool hasUnsavedChanges = false;
 
         private Grid findReplacePanel;
         private TextBox findTextBox;
@@ -53,6 +65,8 @@ namespace SCE2
         private readonly SolidColorBrush FunctionBrush = new SolidColorBrush(Color.FromArgb(255, 220, 220, 170));
         private readonly SolidColorBrush EscapeSequenceBrush = new SolidColorBrush(Color.FromArgb(255, 255, 206, 84));
 
+        private SettingsWindow settingsWindow;
+
         public MainWindow()
         {
             this.InitializeComponent();
@@ -67,6 +81,9 @@ namespace SCE2
 
             this.SetTitleBar(CustomTitleBar);
 
+            LoadSettings();
+            LoadLastSession();
+
             CodeEditor.SelectionChanged += (s, e) =>
             {
                 UpdateCursorPosition();
@@ -74,9 +91,13 @@ namespace SCE2
 
             CodeEditor.TextChanged += (s, e) =>
             {
-                UpdateLineNumbers();
+                if (lineNumbersEnabled)
+                {
+                    UpdateLineNumbers();
+                }
                 UpdateCursorPosition();
                 ScheduleSyntaxHighlighting();
+                SaveLastSession();
             };
 
             EditorScrollViewer.ViewChanged += (s, e) =>
@@ -90,6 +111,16 @@ namespace SCE2
 
             UpdateLineNumbers();
             CreateFindReplacePanel();
+            ApplySettings();
+            this.Closed += (s, e) =>
+            {
+                SaveLastSession();
+                if (settingsWindow != null)
+                {
+                    settingsWindow.Close();
+                    settingsWindow = null;
+                }
+            };
         }
 
         private void CodeEditor_PreviewKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
@@ -173,6 +204,7 @@ namespace SCE2
 
         private void HandleEnterKey(Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
+            if (!autoIndentationEnabled) return;
             var selection = CodeEditor.Document.Selection;
             var cursorPosition = selection.StartPosition;
             string text;
@@ -405,34 +437,41 @@ namespace SCE2
 
         private void CodeEditor_CharacterReceived(UIElement sender, Microsoft.UI.Xaml.Input.CharacterReceivedRoutedEventArgs args)
         {
+            if (!autoBraceClosingEnabled && !autoCompletionEnabled) return;
             switch (args.Character)
             {
                 case '{':
+                    if (!autoBraceClosingEnabled) return;
                     var selection = CodeEditor.Document.Selection;
                     selection.TypeText("}");
                     selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
                     break;
                 case '(':
+                    if (!autoBraceClosingEnabled) return;
                     selection = CodeEditor.Document.Selection;
                     selection.TypeText(")");
                     selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
                     break;
                 case '[':
+                    if (!autoBraceClosingEnabled) return;
                     selection = CodeEditor.Document.Selection;
                     selection.TypeText("]");
                     selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
                     break;
                 case '"':
+                    if (!autoCompletionEnabled) return;
                     selection = CodeEditor.Document.Selection;
                     selection.TypeText("\"");
                     selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
                     break;
                 case '\'':
+                    if (!autoCompletionEnabled) return;
                     selection = CodeEditor.Document.Selection;
                     selection.TypeText("'");
                     selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
                     break;
                 case '*':
+                    if (!autoCompletionEnabled) return;
                     string text;
                     CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
                     selection = CodeEditor.Document.Selection;
@@ -478,8 +517,145 @@ namespace SCE2
 
         private void Settings_Click(object sender, RoutedEventArgs e)
         {
-            SettingsWindow settingsWindow = new SettingsWindow();
+            if (settingsWindow != null)
+            {
+                settingsWindow.Close();
+                settingsWindow = null;
+                return;
+            }
+
+            settingsWindow = new SettingsWindow(this);
             settingsWindow.Activate();
+        }
+
+        private async void LoadSettings()
+        {
+            try
+            {
+                var localSettings = ApplicationData.Current.LocalSettings;
+
+                tabsize = (short)(localSettings.Values["TabSize"] ?? 4);
+                autoIndentationEnabled = (bool)(localSettings.Values["AutoIndentation"] ?? true);
+                autoCompletionEnabled = (bool)(localSettings.Values["AutoCompletion"] ?? true);
+                autoBraceClosingEnabled = (bool)(localSettings.Values["AutoBraceClosing"] ?? true);
+                lineNumbersEnabled = (bool)(localSettings.Values["LineNumbers"] ?? true);
+                wordWrapEnabled = (bool)(localSettings.Values["WordWrap"] ?? false);
+            }
+            catch
+            {
+                tabsize = 4;
+                autoIndentationEnabled = true;
+                autoCompletionEnabled = true;
+                autoBraceClosingEnabled = true;
+                lineNumbersEnabled = true;
+                wordWrapEnabled = false;
+            }
+        }
+
+        private async void SaveSettings()
+        {
+            try
+            {
+                var localSettings = ApplicationData.Current.LocalSettings;
+
+                localSettings.Values["TabSize"] = tabsize;
+                localSettings.Values["AutoIndentation"] = autoIndentationEnabled;
+                localSettings.Values["AutoCompletion"] = autoCompletionEnabled;
+                localSettings.Values["AutoBraceClosing"] = autoBraceClosingEnabled;
+                localSettings.Values["LineNumbers"] = lineNumbersEnabled;
+                localSettings.Values["WordWrap"] = wordWrapEnabled;
+            }
+            catch { }
+        }
+
+        private async void LoadLastSession()
+        {
+            try
+            {
+                var localSettings = ApplicationData.Current.LocalSettings;
+
+                var lastContent = localSettings.Values["LastContent"] as string;
+                var lastFilePath = localSettings.Values["LastFilePath"] as string;
+                var lastLanguage = localSettings.Values["LastLanguage"] as string;
+
+                if (!string.IsNullOrEmpty(lastContent))
+                {
+                    CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, lastContent);
+                }
+
+                if (!string.IsNullOrEmpty(lastFilePath))
+                {
+                    currentFilePath = lastFilePath;
+                }
+
+                if (!string.IsNullOrEmpty(lastLanguage))
+                {
+                    currentLanguage = lastLanguage;
+                }
+
+                StatusBarText.Text = "Session restored";
+            }
+            catch
+            {
+                currentLanguage = "c";
+            }
+        }
+
+        private async void SaveLastSession()
+        {
+            try
+            {
+                var localSettings = ApplicationData.Current.LocalSettings;
+
+                string text;
+                CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+
+                localSettings.Values["LastContent"] = text;
+                localSettings.Values["LastFilePath"] = currentFilePath;
+                localSettings.Values["LastLanguage"] = currentLanguage;
+            }
+            catch { }
+        }
+
+        private void ApplySettings()
+        {
+            LineNumbersScrollViewer.Visibility = lineNumbersEnabled ? Visibility.Visible : Visibility.Collapsed;
+
+            CodeEditor.TextWrapping = wordWrapEnabled ? TextWrapping.Wrap : TextWrapping.NoWrap;
+
+            var editorParent = CodeEditor.Parent as FrameworkElement;
+            if (editorParent != null)
+            {
+                if (lineNumbersEnabled)
+                {
+                    Grid.SetColumn(editorParent, 1);
+                    Grid.SetColumnSpan(editorParent, 1);
+                }
+                else
+                {
+                    Grid.SetColumn(editorParent, 0);
+                    Grid.SetColumnSpan(editorParent, 2);
+                }
+            }
+        }
+
+        public void UpdateSettings(short newTabSize, bool newAutoIndent, bool newAutoCompletion,
+            bool newAutoBraceClosing, bool newLineNumbers, bool newWordWrap)
+        {
+            tabsize = newTabSize;
+            autoIndentationEnabled = newAutoIndent;
+            autoCompletionEnabled = newAutoCompletion;
+            autoBraceClosingEnabled = newAutoBraceClosing;
+            lineNumbersEnabled = newLineNumbers;
+            wordWrapEnabled = newWordWrap;
+
+            SaveSettings();
+            ApplySettings();
+        }
+
+        public (short tabSize, bool autoIndent, bool autoCompletion, bool autoBraceClosing, bool lineNumbers, bool wordWrap) GetCurrentSettings()
+        {
+            return (tabsize, autoIndentationEnabled, autoCompletionEnabled, autoBraceClosingEnabled, lineNumbersEnabled, wordWrapEnabled);
         }
     }
 }

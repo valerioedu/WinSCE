@@ -14,15 +14,192 @@
     </Window.SystemBackdrop>
 
     <Grid>
-        <NavigationView PaneDisplayMode="Left" IsBackButtonVisible="Collapsed" IsSettingsVisible="False" PaneTitle="Settings">
+        <NavigationView x:Name="SettingsNavigation" 
+                       PaneDisplayMode="Left" 
+                       IsBackButtonVisible="Collapsed" 
+                       IsSettingsVisible="False" 
+                       PaneTitle="Settings"
+                       SelectionChanged="SettingsNavigation_SelectionChanged">
             <NavigationView.MenuItems>
-                <NavigationViewItem Content="General" Icon="Setting"/>
-                <NavigationViewItem Content="Editor" Icon="Edit"/>
-                <NavigationViewItem Content="Theme" Icon="SetLockScreen"/>
-                <NavigationViewItem Content="About" Icon="Help"/>
+                <NavigationViewItem Content="General" Icon="Setting" Tag="General"/>
+                <NavigationViewItem Content="Editor" Icon="Edit" Tag="Editor"/>
+                <NavigationViewItem Content="Theme" Icon="SetLockScreen" Tag="Theme"/>
+                <NavigationViewItem Content="About" Icon="Help" Tag="About"/>
             </NavigationView.MenuItems>
-            <Grid>
-                
+
+            <Grid x:Name="SettingsContentGrid">
+                <ScrollViewer x:Name="GeneralPanel" Visibility="Visible">
+                    <StackPanel Margin="20" Spacing="20">
+                        <TextBlock Text="General Settings" Style="{ThemeResource TitleTextBlockStyle}"/>
+
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Application Behavior" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+
+                            <ToggleSwitch x:Name="AutoSaveToggle" 
+                                        Header="Auto-save session" 
+                                        IsOn="True"
+                                        OnContent="Enabled" 
+                                        OffContent="Disabled"/>
+
+                            <ToggleSwitch x:Name="RestoreSessionToggle" 
+                                        Header="Restore last session on startup" 
+                                        IsOn="True"
+                                        OnContent="Enabled" 
+                                        OffContent="Disabled"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="EditorPanel" Visibility="Collapsed">
+                    <StackPanel Margin="20" Spacing="20">
+                        <TextBlock Text="Editor Settings" Style="{ThemeResource TitleTextBlockStyle}"/>
+
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Indentation" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <TextBlock Text="Tab size:" VerticalAlignment="Center"/>
+                                <NumberBox x:Name="TabSizeNumberBox" 
+                                         Value="4" 
+                                         Minimum="1" 
+                                         Maximum="8" 
+                                         Width="100"
+                                         SpinButtonPlacementMode="Inline"/>
+                            </StackPanel>
+
+                            <ToggleSwitch x:Name="AutoIndentToggle" 
+                                        Header="Auto indentation" 
+                                        IsOn="True"
+                                        OnContent="Enabled" 
+                                        OffContent="Disabled"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Auto-completion" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+
+                            <ToggleSwitch x:Name="AutoCompletionToggle" 
+                                        Header="Enable auto-completion" 
+                                        IsOn="True"
+                                        OnContent="Enabled" 
+                                        OffContent="Disabled"/>
+
+                            <ToggleSwitch x:Name="AutoBraceClosingToggle" 
+                                        Header="Auto-close braces and brackets" 
+                                        IsOn="True"
+                                        OnContent="Enabled" 
+                                        OffContent="Disabled"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Display" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+
+                            <ToggleSwitch x:Name="LineNumbersToggle" 
+                                        Header="Show line numbers" 
+                                        IsOn="True"
+                                        OnContent="Visible" 
+                                        OffContent="Hidden"/>
+
+                            <ToggleSwitch x:Name="WordWrapToggle" 
+                                        Header="Word wrap (WIP)" 
+                                        IsOn="False"
+                                        OnContent="Enabled" 
+                                        OffContent="Disabled"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Available Features" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+
+                            <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                  BorderThickness="1" 
+                                  CornerRadius="8" 
+                                  Padding="15">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="✓ Syntax highlighting for C, C++, C#, JavaScript, Python, HTML, CSS, XML, JSON, Markdown" 
+                                             TextWrapping="Wrap"/>
+                                    <TextBlock Text="✓ Auto indentation with customizable tab size" 
+                                             TextWrapping="Wrap"/>
+                                    <TextBlock Text="✓ Auto-completion for brackets, braces, and quotes" 
+                                             TextWrapping="Wrap"/>
+                                    <TextBlock Text="✓ Line numbers with optional display" 
+                                             TextWrapping="Wrap"/>
+                                    <TextBlock Text="✓ Word wrap toggle" 
+                                             TextWrapping="Wrap"/>
+                                    <TextBlock Text="✓ Session persistence (auto-save and restore)" 
+                                             TextWrapping="Wrap"/>
+                                    <TextBlock Text="✓ Multi-language support with auto-detection" 
+                                             TextWrapping="Wrap"/>
+                                    <TextBlock Text="✓ Generic file support (any extension)" 
+                                             TextWrapping="Wrap"/>
+                                    <TextBlock Text="✓ Find and replace functionality" 
+                                             TextWrapping="Wrap"/>
+                                    <TextBlock Text="✓ Keyboard shortcuts (Ctrl+S, Ctrl+O, Ctrl+N, Ctrl+F, Ctrl+L)" 
+                                             TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                            <Button x:Name="ResetToDefaultsButton" 
+                                  Content="Reset to Defaults" 
+                                  Click="ResetToDefaults_Click"/>
+                            <Button x:Name="ApplySettingsButton" 
+                                  Content="Apply Settings" 
+                                  Style="{ThemeResource AccentButtonStyle}"
+                                  Click="ApplySettings_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="ThemePanel" Visibility="Collapsed">
+                    <StackPanel Margin="20" Spacing="20">
+                        <TextBlock Text="Theme Settings" Style="{ThemeResource TitleTextBlockStyle}"/>
+
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Appearance" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+
+                            <RadioButton Content="Light theme" GroupName="Theme" IsChecked="False"/>
+                            <RadioButton Content="Dark theme" GroupName="Theme" IsChecked="True"/>
+                            <RadioButton Content="System default" GroupName="Theme" IsChecked="False"/>
+                        </StackPanel>
+
+                        <TextBlock Text="Color scheme customization coming in future updates!" 
+                                 Style="{ThemeResource CaptionTextBlockStyle}" 
+                                 Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="AboutPanel" Visibility="Collapsed">
+                    <StackPanel Margin="20" Spacing="20">
+                        <TextBlock Text="About SCE" Style="{ThemeResource TitleTextBlockStyle}"/>
+
+                        <StackPanel Spacing="15">
+                            <TextBlock Text="SCE (Source Code Editor)" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                            <TextBlock Text="Version 2.0" Style="{ThemeResource BodyTextBlockStyle}"/>
+
+                            <TextBlock Text="A lightweight, feature-rich code editor built with WinUI 3." 
+                                     TextWrapping="Wrap"/>
+
+                            <TextBlock Text="Features:" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,20,0,0"/>
+                            <StackPanel Spacing="5">
+                                <TextBlock Text="• Multi-language syntax highlighting"/>
+                                <TextBlock Text="• Intelligent auto-indentation"/>
+                                <TextBlock Text="• Session persistence"/>
+                                <TextBlock Text="• Customizable editor settings"/>
+                                <TextBlock Text="• Generic file support"/>
+                                <TextBlock Text="• Modern UI with Mica backdrop"/>
+                            </StackPanel>
+
+                            <TextBlock Text="Keyboard Shortcuts:" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="0,20,0,0"/>
+                            <StackPanel Spacing="5">
+                                <TextBlock Text="Ctrl + N: New file"/>
+                                <TextBlock Text="Ctrl + O: Open file"/>
+                                <TextBlock Text="Ctrl + S: Save file"/>
+                                <TextBlock Text="Ctrl + F: Find"/>
+                                <TextBlock Text="Ctrl + L: Select line"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
             </Grid>
         </NavigationView>
     </Grid>
