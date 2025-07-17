@@ -39,6 +39,10 @@ namespace SCE2
             AutoBraceClosingToggle.IsOn = currentSettings.autoBraceClosing;
             LineNumbersToggle.IsOn = currentSettings.lineNumbers;
             WordWrapToggle.IsOn = currentSettings.wordWrap;
+
+            AutoSaveToggle.IsOn = currentSettings.autoSave;
+            RestoreSessionToggle.IsOn = currentSettings.restoreSession;
+            AutoSaveIntervalNumberBox.Value = currentSettings.autoSaveInterval;
         }
 
         private void SettingsNavigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -80,13 +84,22 @@ namespace SCE2
                     return;
                 }
 
+                if (AutoSaveIntervalNumberBox.Value < 5 || AutoSaveIntervalNumberBox.Value > 300)
+                {
+                    ShowErrorDialog("Auto-save interval must be between 5 and 300 seconds.");
+                    return;
+                }
+
                 parentWindow.UpdateSettings(
                     (short)TabSizeNumberBox.Value,
                     AutoIndentToggle.IsOn,
                     AutoCompletionToggle.IsOn,
                     AutoBraceClosingToggle.IsOn,
                     LineNumbersToggle.IsOn,
-                    WordWrapToggle.IsOn
+                    WordWrapToggle.IsOn,
+                    AutoSaveToggle.IsOn,
+                    RestoreSessionToggle.IsOn,
+                    (int)AutoSaveIntervalNumberBox.Value
                 );
 
                 ShowSuccessDialog("Settings applied successfully!");
@@ -108,6 +121,7 @@ namespace SCE2
 
             AutoSaveToggle.IsOn = true;
             RestoreSessionToggle.IsOn = true;
+            AutoSaveIntervalNumberBox.Value = 30;
         }
 
         private async void ShowErrorDialog(string message)

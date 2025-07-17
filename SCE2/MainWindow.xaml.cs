@@ -35,10 +35,11 @@ namespace SCE2
         private bool lineNumbersEnabled = true;
         private bool wordWrapEnabled = false;
 
+        // New settings for auto-save and session restore
         private bool autoSaveEnabled = true;
         private bool restoreSessionEnabled = true;
         private DispatcherTimer autoSaveTimer;
-        private readonly int AUTO_SAVE_INTERVAL_SECONDS = 30;
+        private int autoSaveInterval = 30; // Auto-save interval in seconds (user configurable)
         private bool hasUnsavedChanges = false;
 
         private Grid findReplacePanel;
@@ -82,7 +83,13 @@ namespace SCE2
             this.SetTitleBar(CustomTitleBar);
 
             LoadSettings();
-            LoadLastSession();
+
+            if (restoreSessionEnabled)
+            {
+                LoadLastSession();
+            }
+
+            InitializeAutoSave();
 
             CodeEditor.SelectionChanged += (s, e) =>
             {
@@ -97,7 +104,13 @@ namespace SCE2
                 }
                 UpdateCursorPosition();
                 ScheduleSyntaxHighlighting();
-                SaveLastSession();
+
+                hasUnsavedChanges = true;
+
+                if (autoSaveEnabled)
+                {
+                    SaveLastSession();
+                }
             };
 
             EditorScrollViewer.ViewChanged += (s, e) =>
@@ -112,15 +125,65 @@ namespace SCE2
             UpdateLineNumbers();
             CreateFindReplacePanel();
             ApplySettings();
+
             this.Closed += (s, e) =>
             {
-                SaveLastSession();
+                if (restoreSessionEnabled)
+                {
+                    SaveLastSession();
+                }
+
+                if (autoSaveTimer != null)
+                {
+                    autoSaveTimer.Stop();
+                    autoSaveTimer = null;
+                }
+
                 if (settingsWindow != null)
                 {
                     settingsWindow.Close();
                     settingsWindow = null;
                 }
             };
+        }
+
+        private void InitializeAutoSave()
+        {
+            if (autoSaveTimer != null)
+            {
+                autoSaveTimer.Stop();
+                autoSaveTimer = null;
+            }
+
+            if (autoSaveEnabled)
+            {
+                autoSaveTimer = new DispatcherTimer();
+                autoSaveTimer.Interval = TimeSpan.FromSeconds(autoSaveInterval);
+                autoSaveTimer.Tick += AutoSaveTimer_Tick;
+                autoSaveTimer.Start();
+            }
+        }
+
+        private void AutoSaveTimer_Tick(object sender, object e)
+        {
+            if (hasUnsavedChanges && autoSaveEnabled)
+            {
+                SaveLastSession();
+
+                string currentStatus = StatusBarText.Text;
+                StatusBarText.Text = currentStatus.Contains("[Auto-saved]") ? currentStatus : currentStatus + " [Auto-saved]";
+
+                var clearTimer = new DispatcherTimer();
+                clearTimer.Interval = TimeSpan.FromSeconds(2);
+                clearTimer.Tick += (s, args) =>
+                {
+                    clearTimer.Stop();
+                    UpdateCursorPosition();
+                };
+                clearTimer.Start();
+
+                hasUnsavedChanges = false;
+            }
         }
 
         private void CodeEditor_PreviewKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
@@ -372,10 +435,13 @@ namespace SCE2
 
             var position = GetCursorPosition(text, cursorIndex);
             char last = cursorIndex > 0 && text.Length > 0 ? text[Math.Min(cursorIndex - 1, text.Length - 1)] : '\0';
+
+            string fileName = string.IsNullOrEmpty(currentFilePath) ? "Untitled" : System.IO.Path.GetFileName(currentFilePath);
+
             if (last > 27 && last < 128)
-                StatusBarText.Text = $"Ln {position.line}, Col {position.column}, Key: {last}";
+                StatusBarText.Text = $"Ln {position.line}, Col {position.column}, Key: {last} | {fileName}";
             else
-                StatusBarText.Text = $"Ln {position.line}, Col {position.column}";
+                StatusBarText.Text = $"Ln {position.line}, Col {position.column} | {fileName}";
         }
 
         private void UpdateLineNumbers()
@@ -540,6 +606,10 @@ namespace SCE2
                 autoBraceClosingEnabled = (bool)(localSettings.Values["AutoBraceClosing"] ?? true);
                 lineNumbersEnabled = (bool)(localSettings.Values["LineNumbers"] ?? true);
                 wordWrapEnabled = (bool)(localSettings.Values["WordWrap"] ?? false);
+
+                autoSaveEnabled = (bool)(localSettings.Values["AutoSave"] ?? true);
+                restoreSessionEnabled = (bool)(localSettings.Values["RestoreSession"] ?? true);
+                autoSaveInterval = (int)(localSettings.Values["AutoSaveInterval"] ?? 30);
             }
             catch
             {
@@ -549,6 +619,9 @@ namespace SCE2
                 autoBraceClosingEnabled = true;
                 lineNumbersEnabled = true;
                 wordWrapEnabled = false;
+                autoSaveEnabled = true;
+                restoreSessionEnabled = true;
+                autoSaveInterval = 30;
             }
         }
 
@@ -564,6 +637,10 @@ namespace SCE2
                 localSettings.Values["AutoBraceClosing"] = autoBraceClosingEnabled;
                 localSettings.Values["LineNumbers"] = lineNumbersEnabled;
                 localSettings.Values["WordWrap"] = wordWrapEnabled;
+
+                localSettings.Values["AutoSave"] = autoSaveEnabled;
+                localSettings.Values["RestoreSession"] = restoreSessionEnabled;
+                localSettings.Values["AutoSaveInterval"] = autoSaveInterval;
             }
             catch { }
         }
@@ -580,6 +657,19 @@ namespace SCE2
 
                 if (!string.IsNullOrEmpty(lastContent))
                 {
+                    if (lastContent.EndsWith("\r"))
+                    {
+                        lastContent = lastContent.TrimEnd('\r');
+                    }
+                    if (lastContent.EndsWith("\n"))
+                    {
+                        lastContent = lastContent.TrimEnd('\n');
+                    }
+                    if (lastContent.EndsWith("\r\n"))
+                    {
+                        lastContent = lastContent.TrimEnd('\r', '\n');
+                    }
+
                     CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, lastContent);
                 }
 
@@ -594,6 +684,7 @@ namespace SCE2
                 }
 
                 StatusBarText.Text = "Session restored";
+                hasUnsavedChanges = false;
             }
             catch
             {
@@ -637,10 +728,12 @@ namespace SCE2
                     Grid.SetColumnSpan(editorParent, 2);
                 }
             }
+
+            InitializeAutoSave();
         }
 
         public void UpdateSettings(short newTabSize, bool newAutoIndent, bool newAutoCompletion,
-            bool newAutoBraceClosing, bool newLineNumbers, bool newWordWrap)
+            bool newAutoBraceClosing, bool newLineNumbers, bool newWordWrap, bool newAutoSave, bool newRestoreSession, int newAutoSaveInterval)
         {
             tabsize = newTabSize;
             autoIndentationEnabled = newAutoIndent;
@@ -648,14 +741,17 @@ namespace SCE2
             autoBraceClosingEnabled = newAutoBraceClosing;
             lineNumbersEnabled = newLineNumbers;
             wordWrapEnabled = newWordWrap;
+            autoSaveEnabled = newAutoSave;
+            restoreSessionEnabled = newRestoreSession;
+            autoSaveInterval = newAutoSaveInterval;
 
             SaveSettings();
             ApplySettings();
         }
 
-        public (short tabSize, bool autoIndent, bool autoCompletion, bool autoBraceClosing, bool lineNumbers, bool wordWrap) GetCurrentSettings()
+        public (short tabSize, bool autoIndent, bool autoCompletion, bool autoBraceClosing, bool lineNumbers, bool wordWrap, bool autoSave, bool restoreSession, int autoSaveInterval) GetCurrentSettings()
         {
-            return (tabsize, autoIndentationEnabled, autoCompletionEnabled, autoBraceClosingEnabled, lineNumbersEnabled, wordWrapEnabled);
+            return (tabsize, autoIndentationEnabled, autoCompletionEnabled, autoBraceClosingEnabled, lineNumbersEnabled, wordWrapEnabled, autoSaveEnabled, restoreSessionEnabled, autoSaveInterval);
         }
     }
 }
