@@ -88,12 +88,17 @@ namespace SCE2
             picker.FileTypeChoices.Add("C++ file", new[] { ".cpp", ".cxx", ".cc" });
             picker.FileTypeChoices.Add("Header file", new[] { ".h", ".hpp", ".hxx" });
             picker.FileTypeChoices.Add("C# file", new[] { ".cs" });
-            picker.FileTypeChoices.Add("JavaScript file", new[] { ".js" });
-            picker.FileTypeChoices.Add("Python file", new[] { ".py" });
+            picker.FileTypeChoices.Add("Java file", new[] { ".java" });
+            picker.FileTypeChoices.Add("JavaScript file", new[] { ".js", ".mjs", ".jsx" });
+            picker.FileTypeChoices.Add("Python file", new[] { ".py", ".pyw" });
+            picker.FileTypeChoices.Add("Rust file", new[] { ".rs" });
+            picker.FileTypeChoices.Add("Go file", new[] { ".go" });
             picker.FileTypeChoices.Add("HTML file", new[] { ".html", ".htm" });
             picker.FileTypeChoices.Add("CSS file", new[] { ".css" });
+            picker.FileTypeChoices.Add("XML file", new[] { ".xml", ".xsd", ".xsl", ".xslt" });
+            picker.FileTypeChoices.Add("JSON file", new[] { ".json", ".jsonc" });
             picker.FileTypeChoices.Add("Text file", new[] { ".txt" });
-            picker.FileTypeChoices.Add("Markdown file", new[] { ".md" });
+            picker.FileTypeChoices.Add("Markdown file", new[] { ".md", ".markdown" });
             picker.FileTypeChoices.Add("Unknown", new List<string>() { "." });
 
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -146,10 +151,15 @@ namespace SCE2
                 "c" => "#include <stdio.h>\n\nint main() {\n    printf(\"Hello, World!\\n\");\n    return 0;\n}",
                 "cpp" => "#include <iostream>\n\nint main() {\n    std::cout << \"Hello, World!\" << std::endl;\n    return 0;\n}",
                 "csharp" => "using System;\n\nclass Program\n{\n    static void Main()\n    {\n        Console.WriteLine(\"Hello, World!\");\n    }\n}",
+                "java" => "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, World!\");\n    }\n}",
                 "javascript" => "console.log('Hello, World!');",
                 "python" => "print('Hello, World!')",
+                "rust" => "fn main() {\n    println!(\"Hello, World!\");\n}",
+                "go" => "package main\n\nimport \"fmt\"\n\nfunc main() {\n    fmt.Println(\"Hello, World!\")\n}",
                 "html" => "<!DOCTYPE html>\n<html>\n<head>\n    <title>Document</title>\n</head>\n<body>\n    <h1>Hello, World!</h1>\n</body>\n</html>",
                 "css" => "/* CSS Styles */\nbody {\n    font-family: Arial, sans-serif;\n    margin: 0;\n    padding: 20px;\n}",
+                "xml" => "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<root>\n    <message>Hello, World!</message>\n</root>",
+                "json" => "{\n    \"message\": \"Hello, World!\",\n    \"language\": \"json\"\n}",
                 "markdown" => "# Hello, World!\n\nThis is a markdown document.",
                 _ => "// New file\n"
             };
@@ -174,11 +184,16 @@ namespace SCE2
                 ".c" or ".h" => "c",
                 ".cpp" or ".cxx" or ".cc" or ".hpp" or ".hxx" => "cpp",
                 ".cs" => "csharp",
-                ".js" => "javascript",
-                ".py" => "python",
+                ".java" => "java",
+                ".js" or ".mjs" or ".jsx" => "javascript",
+                ".py" or ".pyw" => "python",
+                ".rs" => "rust",
+                ".go" => "go",
                 ".html" or ".htm" => "html",
                 ".css" => "css",
-                ".md" => "markdown",
+                ".xml" or ".xsd" or ".xsl" or ".xslt" => "xml",
+                ".json" or ".jsonc" => "json",
+                ".md" or ".markdown" => "markdown",
                 ".txt" => "text",
                 _ => "generic"
             };
@@ -208,10 +223,15 @@ namespace SCE2
                 "c" => "C",
                 "cpp" => "C++",
                 "csharp" => "C#",
+                "java" => "Java",
                 "javascript" => "JavaScript",
                 "python" => "Python",
+                "rust" => "Rust",
+                "go" => "Go",
                 "html" => "HTML",
                 "css" => "CSS",
+                "xml" => "XML",
+                "json" => "JSON",
                 "markdown" => "Markdown",
                 "text" => "Text",
                 "generic" => "Generic",

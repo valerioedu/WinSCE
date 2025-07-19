@@ -73,15 +73,19 @@
                             <MenuFlyoutItem Text="C++" FontSize="11" Tag="cpp" Click="SetLanguage_Click"/>
                             <MenuFlyoutItem Text="C#" FontSize="11" Tag="csharp" Click="SetLanguage_Click"/>
                             <MenuFlyoutSeparator/>
-                            <MenuFlyoutItem Text="JavaScript" FontSize="11" Tag="javascript" Click="SetLanguage_Click"/>
+                            <MenuFlyoutItem Text="Java" FontSize="11" Tag="java" Click="SetLanguage_Click"/>
+                            <MenuFlyoutItem Text="Go" FontSize="11" Tag="go" Click="SetLanguage_Click"/>
+                            <MenuFlyoutItem Text="Rust" FontSize="11" Tag="rust" Click="SetLanguage_Click"/>
                             <MenuFlyoutItem Text="Python" FontSize="11" Tag="python" Click="SetLanguage_Click"/>
                             <MenuFlyoutSeparator/>
+                            <MenuFlyoutItem Text="JavaScript" FontSize="11" Tag="javascript" Click="SetLanguage_Click"/>
                             <MenuFlyoutItem Text="HTML" FontSize="11" Tag="html" Click="SetLanguage_Click"/>
                             <MenuFlyoutItem Text="CSS" FontSize="11" Tag="css" Click="SetLanguage_Click"/>
                             <MenuFlyoutItem Text="XML" FontSize="11" Tag="xml" Click="SetLanguage_Click"/>
                             <MenuFlyoutItem Text="JSON" FontSize="11" Tag="json" Click="SetLanguage_Click"/>
                             <MenuFlyoutSeparator/>
                             <MenuFlyoutItem Text="Text" FontSize="11" Tag="text" Click="SetLanguage_Click"/>
+                            <MenuFlyoutItem Text="Markdown" FontSize="11" Tag="markdown" Click="SetLanguage_Click"/>
                         </MenuFlyout>
                     </Button.Flyout>
                 </Button>
@@ -95,7 +99,6 @@
                         HorizontalContentAlignment="Center" CornerRadius="0" Click="Settings_Click"/>
             </StackPanel>
 
-            <!-- Area vuota per i pulsanti di controllo della finestra -->
             <Grid Grid.Column="1" MinWidth="138"/>
         </Grid>
 
