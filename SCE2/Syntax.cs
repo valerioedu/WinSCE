@@ -59,7 +59,7 @@ namespace SCE2
                 string text;
                 CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
 
-                if (text.Length > MAX_HIGHLIGHT_LENGTH) return;
+                if (text.Length > maxHighlightLength) return;
 
                 if (text == lastHighlightedText) return;
 

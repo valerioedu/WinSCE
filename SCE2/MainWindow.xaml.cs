@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Documents;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
@@ -26,9 +27,9 @@ namespace SCE2
         private bool isApplyingSyntaxHighlighting = false;
         private DispatcherTimer syntaxHighlightingTimer;
         private string lastHighlightedText = "";
-        private readonly int MAX_HIGHLIGHT_LENGTH = 1000000;
+        private readonly int maxHighlightLength = 1000000;
 
-        private short tabsize = 4;
+        private short tabSize = 4;
         private bool autoIndentationEnabled = true;
         private bool autoCompletionEnabled = true;
         private bool autoBraceClosingEnabled = true;
@@ -47,12 +48,12 @@ namespace SCE2
         private TextBlock matchCountText;
         private Button replaceButton;
         private Button replaceAllButton;
-        private List<int> searchMatches = new List<int>();
+        private readonly List<int> searchMatches = new List<int>();
         private int currentMatchIndex = -1;
 
         private Button toggleReplaceButton;
         private Popup replacePopup;
-        private string lastStatusText = "";
+        //private string lastStatusText = "";
         private readonly Queue<List<int>> _searchMatchesPool = new();
 
         private readonly SolidColorBrush KeywordBrush = new SolidColorBrush(Color.FromArgb(255, 86, 156, 214));
@@ -135,29 +136,30 @@ namespace SCE2
                 if (autoSaveTimer != null)
                 {
                     autoSaveTimer.Stop();
-                    autoSaveTimer = null;
                 }
 
                 if (settingsWindow != null)
                 {
                     settingsWindow.Close();
-                    settingsWindow = null;
                 }
             };
+
+        }
+
+        private void FileMenuShortcut_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+        {
+            FileButton.Flyout.ShowAt(FileButton);
+            args.Handled = true;
         }
 
         private void InitializeAutoSave()
         {
-            if (autoSaveTimer != null)
-            {
-                autoSaveTimer.Stop();
-                autoSaveTimer = null;
-            }
-
             if (autoSaveEnabled)
             {
-                autoSaveTimer = new DispatcherTimer();
-                autoSaveTimer.Interval = TimeSpan.FromSeconds(autoSaveInterval);
+                autoSaveTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(autoSaveInterval)
+                };
                 autoSaveTimer.Tick += AutoSaveTimer_Tick;
                 autoSaveTimer.Start();
             }
@@ -169,7 +171,7 @@ namespace SCE2
             {
                 SaveLastSession();
 
-                string currentStatus = StatusBarText.Text;
+                var currentStatus = StatusBarText.Text;
                 StatusBarText.Text = currentStatus.Contains("[Auto-saved]") ? currentStatus : currentStatus + " [Auto-saved]";
 
                 var clearTimer = new DispatcherTimer();
@@ -243,7 +245,10 @@ namespace SCE2
 
                             CodeEditor.Document.Selection.SetRange(lineStart, lineEnd);
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            StatusBarText.Text = $"Error saving file: {ex.Message}";
+                        }
                         break;
                 }
                 return;
@@ -272,33 +277,33 @@ namespace SCE2
             string text;
             CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
 
-            string currentIndentation = GetCurrentLineIndentation(text, cursorPosition);
+            var currentIndentation = GetCurrentLineIndentation(text, cursorPosition);
 
             if (cursorPosition > 0 && cursorPosition < text.Length &&
                 text[cursorPosition - 1] == '{' && text[cursorPosition] == '}')
             {
                 e.Handled = true;
 
-                string indentedText = "\n" + currentIndentation + GetIndentString() + "\n" + currentIndentation;
+                var indentedText = "\n" + currentIndentation + GetIndentString() + "\n" + currentIndentation;
                 selection.TypeText(indentedText);
 
-                int newCursorPosition = cursorPosition + currentIndentation.Length + GetIndentString().Length + 1;
+                var newCursorPosition = cursorPosition + currentIndentation.Length + GetIndentString().Length + 1;
                 selection.SetRange(newCursorPosition, newCursorPosition);
             }
             else
             {
-                bool shouldIndentNext = ShouldIndentNextLine(text, cursorPosition);
+                var shouldIndentNext = ShouldIndentNextLine(text, cursorPosition);
 
                 e.Handled = true;
 
                 if (shouldIndentNext)
                 {
-                    string indentedText = "\n" + currentIndentation + GetIndentString();
+                    var indentedText = "\n" + currentIndentation + GetIndentString();
                     selection.TypeText(indentedText);
                 }
                 else
                 {
-                    string indentedText = "\n" + currentIndentation;
+                    var indentedText = "\n" + currentIndentation;
                     selection.TypeText(indentedText);
                 }
             }
@@ -306,14 +311,14 @@ namespace SCE2
 
         private string GetCurrentLineIndentation(string text, int cursorPosition)
         {
-            int lineStart = cursorPosition;
+            var lineStart = cursorPosition;
             while (lineStart > 0 && text[lineStart - 1] != '\n' && text[lineStart - 1] != '\r')
             {
                 lineStart--;
             }
 
-            string indentation = "";
-            for (int i = lineStart; i < text.Length && (text[i] == ' ' || text[i] == '\t'); i++)
+            var indentation = "";
+            for (var i = lineStart; i < text.Length && (text[i] == ' ' || text[i] == '\t'); i++)
             {
                 indentation += text[i];
             }
@@ -323,19 +328,19 @@ namespace SCE2
 
         private bool ShouldIndentNextLine(string text, int cursorPosition)
         {
-            int lineStart = cursorPosition;
+            var lineStart = cursorPosition;
             while (lineStart > 0 && text[lineStart - 1] != '\n' && text[lineStart - 1] != '\r')
             {
                 lineStart--;
             }
 
-            string lineContent = "";
-            for (int i = lineStart; i < cursorPosition && i < text.Length; i++)
+            var lineContent = "";
+            for (var i = lineStart; i < cursorPosition && i < text.Length; i++)
             {
                 lineContent += text[i];
             }
 
-            string trimmedLine = lineContent.TrimEnd();
+            var trimmedLine = lineContent.TrimEnd();
 
             return trimmedLine.EndsWith("{") ||
                    trimmedLine.EndsWith(":") ||
@@ -344,7 +349,7 @@ namespace SCE2
 
         private bool IsControlStructure(string line)
         {
-            string trimmed = line.Trim();
+            var trimmed = line.Trim();
 
             return trimmed.StartsWith("if ") ||
                    trimmed.StartsWith("else") ||
@@ -358,24 +363,24 @@ namespace SCE2
 
         private string GetIndentString()
         {
-            return new string(' ', tabsize);
+            return new string(' ', tabSize);
         }
 
         private void HandleDelKey(Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
             var selection = CodeEditor.Document.Selection;
-            int cursorPosition = selection.StartPosition;
+            var cursorPosition = selection.StartPosition;
             string text;
             CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
 
-            if (cursorPosition >= tabsize)
+            if (cursorPosition >= tabSize)
             {
-                int column = GetColumnPosition(text, cursorPosition);
-                bool atTabStop = (column - 1) % tabsize == 0;
+                var column = GetColumnPosition(text, cursorPosition);
+                var atTabStop = (column - 1) % tabSize == 0;
                 if (atTabStop)
                 {
-                    bool allSpaces = true;
-                    for (int i = 1; i <= tabsize; i++)
+                    var allSpaces = true;
+                    for (var i = 1; i <= tabSize; i++)
                     {
                         if (cursorPosition - i < 0 || text[cursorPosition - i] != ' ')
                         {
@@ -387,7 +392,7 @@ namespace SCE2
                     if (allSpaces)
                     {
                         e.Handled = true;
-                        var range = CodeEditor.Document.GetRange(cursorPosition - tabsize, cursorPosition);
+                        var range = CodeEditor.Document.GetRange(cursorPosition - tabSize, cursorPosition);
                         range.Text = "";
                         return;
                     }
@@ -403,11 +408,11 @@ namespace SCE2
             string text;
             CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
 
-            int column = GetColumnPosition(text, cursorPosition);
+            var column = GetColumnPosition(text, cursorPosition);
 
-            int spacesToAdd = tabsize - ((column - 1) % tabsize);
+            var spacesToAdd = tabSize - ((column - 1) % tabSize);
 
-            for (int i = 0; i < spacesToAdd; i++)
+            for (var i = 0; i < spacesToAdd; i++)
             {
                 selection.TypeText(" ");
             }
@@ -415,8 +420,8 @@ namespace SCE2
 
         private int GetColumnPosition(string text, int cursorPosition)
         {
-            int column = 1;
-            for (int i = cursorPosition - 1; i >= 0; i--)
+            var column = 1;
+            for (var i = cursorPosition - 1; i >= 0; i--)
             {
                 if (text[i] == '\n' || text[i] == '\r')
                     break;
@@ -430,12 +435,12 @@ namespace SCE2
             string text;
             CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
             var selection = CodeEditor.Document.Selection;
-            int cursorIndex = selection.StartPosition;
+            var cursorIndex = selection.StartPosition;
 
             var position = GetCursorPosition(text, cursorIndex);
-            char last = cursorIndex > 0 && text.Length > 0 ? text[Math.Min(cursorIndex - 1, text.Length - 1)] : '\0';
+            var last = cursorIndex > 0 && text.Length > 0 ? text[Math.Min(cursorIndex - 1, text.Length - 1)] : '\0';
 
-            string fileName = string.IsNullOrEmpty(currentFilePath) ? "Untitled" : System.IO.Path.GetFileName(currentFilePath);
+            var fileName = string.IsNullOrEmpty(currentFilePath) ? "Untitled" : System.IO.Path.GetFileName(currentFilePath);
 
             if (last > 27 && last < 128)
                 StatusBarText.Text = $"Ln {position.line}, Col {position.column}, Key: {last} | {fileName}";
@@ -448,14 +453,14 @@ namespace SCE2
             string text;
             CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
             var selection = CodeEditor.Document.Selection;
-            int cursorIndex = selection.StartPosition;
+            var cursorIndex = selection.StartPosition;
 
             var position = GetCursorPosition(text, cursorIndex);
-            int line = position.line;
-            int column = position.column;
+            var line = position.line;
+            var column = position.column;
 
-            int lineCount = 1;
-            for (int i = 0; i < text.Length - 1; i++)
+            var lineCount = 1;
+            for (var i = 0; i < text.Length - 1; i++)
             {
                 if (text[i] == '\r' || text[i] == '\n')
                 {
@@ -465,8 +470,8 @@ namespace SCE2
                 }
             }
 
-            string lineNumbers = "";
-            for (int i = 1; i <= lineCount; i++)
+            var lineNumbers = "";
+            for (var i = 1; i <= lineCount; i++)
             {
                 lineNumbers += i + "\n";
             }
@@ -481,10 +486,10 @@ namespace SCE2
 
         private (int line, int column) GetCursorPosition(string text, int cursorIndex)
         {
-            int line = 1;
-            int column = 1;
+            var line = 1;
+            var column = 1;
 
-            for (int i = 0; i < cursorIndex && i < text.Length; i++)
+            for (var i = 0; i < cursorIndex && i < text.Length; i++)
             {
                 if (text[i] == '\r')
                 {
@@ -540,7 +545,7 @@ namespace SCE2
                     string text;
                     CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
                     selection = CodeEditor.Document.Selection;
-                    int cursorPosition = selection.StartPosition;
+                    var cursorPosition = selection.StartPosition;
 
                     if (cursorPosition > 0 && text[cursorPosition - 2] == '/')
                     {
@@ -593,13 +598,13 @@ namespace SCE2
             settingsWindow.Activate();
         }
 
-        private async void LoadSettings()
+        private void LoadSettings()
         {
             try
             {
                 var localSettings = ApplicationData.Current.LocalSettings;
 
-                tabsize = (short)(localSettings.Values["TabSize"] ?? 4);
+                tabSize = (short)(localSettings.Values["TabSize"] ?? 4);
                 autoIndentationEnabled = (bool)(localSettings.Values["AutoIndentation"] ?? true);
                 autoCompletionEnabled = (bool)(localSettings.Values["AutoCompletion"] ?? true);
                 autoBraceClosingEnabled = (bool)(localSettings.Values["AutoBraceClosing"] ?? true);
@@ -612,7 +617,7 @@ namespace SCE2
             }
             catch
             {
-                tabsize = 4;
+                tabSize = 4;
                 autoIndentationEnabled = true;
                 autoCompletionEnabled = true;
                 autoBraceClosingEnabled = true;
@@ -624,13 +629,13 @@ namespace SCE2
             }
         }
 
-        private async void SaveSettings()
+        private void SaveSettings()
         {
             try
             {
                 var localSettings = ApplicationData.Current.LocalSettings;
 
-                localSettings.Values["TabSize"] = tabsize;
+                localSettings.Values["TabSize"] = tabSize;
                 localSettings.Values["AutoIndentation"] = autoIndentationEnabled;
                 localSettings.Values["AutoCompletion"] = autoCompletionEnabled;
                 localSettings.Values["AutoBraceClosing"] = autoBraceClosingEnabled;
@@ -644,7 +649,7 @@ namespace SCE2
             catch { }
         }
 
-        private async void LoadLastSession()
+        private void LoadLastSession()
         {
             try
             {
@@ -691,7 +696,7 @@ namespace SCE2
             }
         }
 
-        private async void SaveLastSession()
+        private void SaveLastSession()
         {
             try
             {
@@ -734,7 +739,7 @@ namespace SCE2
         public void UpdateSettings(short newTabSize, bool newAutoIndent, bool newAutoCompletion,
             bool newAutoBraceClosing, bool newLineNumbers, bool newWordWrap, bool newAutoSave, bool newRestoreSession, int newAutoSaveInterval)
         {
-            tabsize = newTabSize;
+            tabSize = newTabSize;
             autoIndentationEnabled = newAutoIndent;
             autoCompletionEnabled = newAutoCompletion;
             autoBraceClosingEnabled = newAutoBraceClosing;
@@ -750,7 +755,12 @@ namespace SCE2
 
         public (short tabSize, bool autoIndent, bool autoCompletion, bool autoBraceClosing, bool lineNumbers, bool wordWrap, bool autoSave, bool restoreSession, int autoSaveInterval) GetCurrentSettings()
         {
-            return (tabsize, autoIndentationEnabled, autoCompletionEnabled, autoBraceClosingEnabled, lineNumbersEnabled, wordWrapEnabled, autoSaveEnabled, restoreSessionEnabled, autoSaveInterval);
+            return (tabSize, autoIndentationEnabled, autoCompletionEnabled, autoBraceClosingEnabled, lineNumbersEnabled, wordWrapEnabled, autoSaveEnabled, restoreSessionEnabled, autoSaveInterval);
+        }
+
+        private async void Quit_Click(object sender, RoutedEventArgs e)
+        {
+            Application.Current.Exit();
         }
     }
 }

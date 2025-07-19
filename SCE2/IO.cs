@@ -2,6 +2,7 @@
 using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,43 +15,68 @@ namespace SCE2
     {
         private async void Open_Click(object sender, RoutedEventArgs e)
         {
-            var picker = new FileOpenPicker();
-            picker.ViewMode = PickerViewMode.List;
-            picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
-
-            picker.FileTypeFilter.Add("*");
-
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-
-            StorageFile file = await picker.PickSingleFileAsync();
-            if (file != null)
+            try
             {
-                try
+                var picker = new FileOpenPicker
                 {
-                    string text = await FileIO.ReadTextAsync(file);
+                    ViewMode = PickerViewMode.List,
+                    SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+                };
 
-                    CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, text);
-                    currentFilePath = file.Path;
+                picker.FileTypeFilter.Add("*");
 
-                    DetectLanguageFromFile(file.Name);
-                    ApplySyntaxHighlightingImmediate();
+                var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                WinRT.Interop.InitializeWithWindow.Initialize(picker, hWnd);
 
-                    StatusBarText.Text = $"Opened: {file.Name}";
-                }
-                catch (Exception ex)
+                var file = await picker.PickSingleFileAsync();
+
+                if (file != null)
                 {
-                    StatusBarText.Text = $"Error opening file: {ex.Message}";
+                    try
+                    {
+                        string text = await FileIO.ReadTextAsync(file);
+
+                        CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, text);
+                        currentFilePath = file.Path;
+
+                        DetectLanguageFromFile(file.Name);
+                        ApplySyntaxHighlightingImmediate();
+
+                        StatusBarText.Text = $"Opened: {file.Name}";
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        StatusBarText.Text = "Access to the file was denied.";
+                    }
+                    catch (IOException ioEx)
+                    {
+                        StatusBarText.Text = $"File I/O error: {ioEx.Message}";
+                    }
+                    catch (Exception ex)
+                    {
+                        StatusBarText.Text = $"Unexpected error reading file: {ex.Message}";
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                StatusBarText.Text = $"Error opening file: {ex.Message}";
             }
         }
 
         private async void Save_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(currentFilePath))
-                await SaveAsFile();
-            else
-                await SaveCurrentFile();
+            try
+            {
+                if (string.IsNullOrEmpty(currentFilePath))
+                    await SaveAsFile();
+                else
+                    await SaveCurrentFile();
+            }
+            catch (Exception ex)
+            {
+                StatusBarText.Text = $"Error saving file: {ex.Message}";
+            }
         }
 
         private async System.Threading.Tasks.Task SaveAsFile()
