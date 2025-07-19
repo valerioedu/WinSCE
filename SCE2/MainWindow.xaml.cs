@@ -159,7 +159,7 @@ namespace SCE2
                 autoSaveTimer = new DispatcherTimer
                 {
                     Interval = TimeSpan.FromSeconds(autoSaveInterval)
-                   };
+                };
                 autoSaveTimer.Tick += AutoSaveTimer_Tick;
                 autoSaveTimer.Start();
             }
