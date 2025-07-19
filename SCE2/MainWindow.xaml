@@ -26,12 +26,40 @@
                 <Button Content="File" Padding="8,0" Margin="2,0,0,0" FontSize="13"
                         Background="Transparent" BorderThickness="0" 
                         VerticalAlignment="Stretch" VerticalContentAlignment="Center"
-                        HorizontalContentAlignment="Center" CornerRadius="0">
+                        HorizontalContentAlignment="Center" CornerRadius="0"
+                        x:Name="FileButton">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="F" Modifiers="Menu" Invoked="FileMenuShortcut_Invoked"/>
+                    </Button.KeyboardAccelerators>
                     <Button.Flyout>
                         <MenuFlyout>
-                            <MenuFlyoutItem Text="New" FontSize="11" Click="New_Click"/>
-                            <MenuFlyoutItem Text="Open" FontSize="11" Click="Open_Click"/>
-                            <MenuFlyoutItem Text="Save" FontSize="11" Click="Save_Click"/>
+                            <MenuFlyoutItem Text="New" FontSize="11" Click="New_Click"
+                                            KeyboardAcceleratorTextOverride="Ctrl+N">
+                                <MenuFlyoutItem.KeyboardAccelerators>
+                                    <KeyboardAccelerator Key="N" Modifiers="Control"/>
+                                </MenuFlyoutItem.KeyboardAccelerators>
+                            </MenuFlyoutItem>
+
+                            <MenuFlyoutItem Text="Open" FontSize="11" Click="Open_Click"
+                                            KeyboardAcceleratorTextOverride="Ctrl+O">
+                                <MenuFlyoutItem.KeyboardAccelerators>
+                                    <KeyboardAccelerator Key="O" Modifiers="Control"/>
+                                </MenuFlyoutItem.KeyboardAccelerators>
+                            </MenuFlyoutItem>
+
+                            <MenuFlyoutItem Text="Save" FontSize="11" Click="Save_Click"
+                                            KeyboardAcceleratorTextOverride="Ctrl+S">
+                                <MenuFlyoutItem.KeyboardAccelerators>
+                                    <KeyboardAccelerator Key="S" Modifiers="Control"/>
+                                </MenuFlyoutItem.KeyboardAccelerators>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutSeparator/>
+                            <MenuFlyoutItem Text="Quit" FontSize="11" Click="Quit_Click"
+                                            KeyboardAcceleratorTextOverride="Ctrl+Q">
+                                <MenuFlyoutItem.KeyboardAccelerators>
+                                    <KeyboardAccelerator Key="Q" Modifiers="Control"/>
+                                </MenuFlyoutItem.KeyboardAccelerators>
+                            </MenuFlyoutItem>
                         </MenuFlyout>
                     </Button.Flyout>
                 </Button>

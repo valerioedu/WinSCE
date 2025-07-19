@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Documents;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
@@ -142,6 +143,13 @@ namespace SCE2
                     settingsWindow.Close();
                 }
             };
+
+        }
+
+        private void FileMenuShortcut_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+        {
+            FileButton.Flyout.ShowAt(FileButton);
+            args.Handled = true;
         }
 
         private void InitializeAutoSave()
@@ -748,6 +756,11 @@ namespace SCE2
         public (short tabSize, bool autoIndent, bool autoCompletion, bool autoBraceClosing, bool lineNumbers, bool wordWrap, bool autoSave, bool restoreSession, int autoSaveInterval) GetCurrentSettings()
         {
             return (tabSize, autoIndentationEnabled, autoCompletionEnabled, autoBraceClosingEnabled, lineNumbersEnabled, wordWrapEnabled, autoSaveEnabled, restoreSessionEnabled, autoSaveInterval);
+        }
+
+        private async void Quit_Click(object sender, RoutedEventArgs e)
+        {
+            Application.Current.Exit();
         }
     }
 }
