@@ -1,5 +1,6 @@
 ﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Shapes;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -43,6 +44,19 @@ namespace SCE2
                         ApplySyntaxHighlightingImmediate();
 
                         StatusBarText.Text = $"Opened: {file.Name}";
+
+                        var dir = System.IO.Path.GetDirectoryName(currentFilePath);
+
+                        try
+                        {
+                            TerminalPanel.ExecuteCommand($"cd {dir}");
+                        }
+                        catch 
+                        {
+                            StatusBarText.Text = "Couldn't access the file directory";
+                        }
+
+                        UpdateGitContext();
                     }
                     catch (UnauthorizedAccessException)
                     {
@@ -72,6 +86,8 @@ namespace SCE2
                     await SaveAsFile();
                 else
                     await SaveCurrentFile();
+
+                UpdateGitContext();
             }
             catch (Exception ex)
             {

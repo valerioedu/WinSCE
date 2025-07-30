@@ -92,7 +92,11 @@
                 <Button Content="Git" Padding="8,0" Margin="2,0,0,0" FontSize="13"
                         Background="Transparent" BorderThickness="0"
                         VerticalAlignment="Stretch" VerticalContentAlignment="Center"
-                        HorizontalContentAlignment="Center" CornerRadius="0"/>
+                        HorizontalContentAlignment="Center" CornerRadius="0" Click="Git_Click"/>
+                <Button Content="Terminal" Padding="8,0" Margin="2,0,0,0" FontSize="13"
+                        Background="Transparent" BorderThickness="0"
+                        VerticalAlignment="Stretch" VerticalContentAlignment="Center"
+                        HorizontalContentAlignment="Center" CornerRadius="0" Click="Terminal_Click"/>
                 <Button Content="Settings" Padding="8,0" Margin="2,0,0,0" FontSize="13"
                         Background="Transparent" BorderThickness="0"
                         VerticalAlignment="Stretch" VerticalContentAlignment="Center"
@@ -102,59 +106,110 @@
             <Grid Grid.Column="1" MinWidth="138"/>
         </Grid>
 
-        <Grid Grid.Row="1" BorderThickness="0,1,0,1" BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}">
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" MinWidth="45"/>
+                <ColumnDefinition x:Name="GitColumn" Width="0"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <ScrollViewer Grid.Column="0" x:Name="LineNumbersScrollViewer" VerticalScrollBarVisibility="Hidden" 
-                        HorizontalAlignment="Stretch">
-                <ScrollViewer.Resources>
-                    <ResourceDictionary>
-                        <SolidColorBrush x:Key="LineNumberBackgroundBrush" Color="{ThemeResource SystemChromeLowColor}"/>
-                        <SolidColorBrush x:Key="LineNumberForegroundBrush" Color="{ThemeResource SystemBaseHighColor}"/>
-                    </ResourceDictionary>
-                </ScrollViewer.Resources>
-                <ScrollViewer.Background>
-                    <SolidColorBrush Color="{ThemeResource SystemChromeLowColor}"/>
-                </ScrollViewer.Background>
-                <TextBlock x:Name="LineNumbers" 
-                         FontFamily="Consolas" 
-                         Padding="5,5,5,5" 
-                         TextAlignment="Right"
-                         Foreground="{StaticResource LineNumberForegroundBrush}"/>
-            </ScrollViewer>
+            <Border x:Name="GitPanel" 
+                    Grid.Column="0" 
+                    Background="{ThemeResource SystemChromeLowColor}"
+                    BorderThickness="0,1,1,0" 
+                    BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                    Visibility="Collapsed">
+                <local:GitControl x:Name="GitControlPanel"/>
+            </Border>
 
-            <ScrollViewer Grid.Column="1" x:Name="EditorScrollViewer">
-                <RichEditBox x:Name="CodeEditor"
-    FontFamily="Consolas"
-    FontSize="14"
-    AcceptsReturn="True"
-    TextWrapping="NoWrap"
-    BorderThickness="0"
-    Padding="5,5,5,5"
-    CornerRadius="0"
-    Background="{ThemeResource SystemChromeLowColor}"
-    Foreground="{ThemeResource SystemBaseHighColor}"
-    SelectionHighlightColor="{ThemeResource SystemAccentColor}"
-    IsSpellCheckEnabled="False"
-    IsTextPredictionEnabled="False"
-    VerticalAlignment="Stretch"
-    HorizontalAlignment="Stretch"
-                             PreviewKeyDown="CodeEditor_PreviewKeyDown"
-                             CharacterReceived="CodeEditor_CharacterReceived">
-                    <RichEditBox.Resources>
-                        <ResourceDictionary>
-                            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
-                            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
-                            <SolidColorBrush x:Key="TextControlForeground" Color="{ThemeResource SystemBaseHighColor}"/>
-                            <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="{ThemeResource SystemBaseHighColor}"/>
-                            <SolidColorBrush x:Key="TextControlForegroundFocused" Color="{ThemeResource SystemBaseHighColor}"/>
-                        </ResourceDictionary>
-                    </RichEditBox.Resources>
-                </RichEditBox>
-            </ScrollViewer>
+            <Border x:Name="GitSplitter" 
+                    Grid.Column="1" 
+                    Width="2" 
+                    VerticalAlignment="Stretch"
+                    Background="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                    Visibility="Collapsed"
+                    ManipulationMode="TranslateX"
+                    PointerPressed="GitSplitter_PointerPressed"
+                    PointerMoved="GitSplitter_PointerMoved"
+                    PointerReleased="GitSplitter_PointerReleased"/>
+
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition x:Name="TerminalRow" Height="0"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" BorderThickness="0,1,0,1" BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" MinWidth="45"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ScrollViewer Grid.Column="0" x:Name="LineNumbersScrollViewer" VerticalScrollBarVisibility="Hidden" 
+                                HorizontalAlignment="Stretch">
+                        <ScrollViewer.Resources>
+                            <ResourceDictionary>
+                                <SolidColorBrush x:Key="LineNumberBackgroundBrush" Color="{ThemeResource SystemChromeLowColor}"/>
+                                <SolidColorBrush x:Key="LineNumberForegroundBrush" Color="{ThemeResource SystemBaseHighColor}"/>
+                            </ResourceDictionary>
+                        </ScrollViewer.Resources>
+                        <ScrollViewer.Background>
+                            <SolidColorBrush Color="{ThemeResource SystemChromeLowColor}"/>
+                        </ScrollViewer.Background>
+                        <TextBlock x:Name="LineNumbers" 
+                                 FontFamily="Consolas" 
+                                 Padding="5,5,5,5" 
+                                 TextAlignment="Right"
+                                 Foreground="{StaticResource LineNumberForegroundBrush}"/>
+                    </ScrollViewer>
+
+                    <ScrollViewer Grid.Column="1" x:Name="EditorScrollViewer">
+                        <RichEditBox x:Name="CodeEditor"
+            FontFamily="Consolas"
+            FontSize="14"
+            AcceptsReturn="True"
+            TextWrapping="NoWrap"
+            BorderThickness="0"
+            Padding="5,5,5,5"
+            CornerRadius="0"
+            Background="{ThemeResource SystemChromeLowColor}"
+            Foreground="{ThemeResource SystemBaseHighColor}"
+            SelectionHighlightColor="{ThemeResource SystemAccentColor}"
+            IsSpellCheckEnabled="False"
+            IsTextPredictionEnabled="False"
+            VerticalAlignment="Stretch"
+            HorizontalAlignment="Stretch"
+                                     PreviewKeyDown="CodeEditor_PreviewKeyDown"
+                                     CharacterReceived="CodeEditor_CharacterReceived">
+                            <RichEditBox.Resources>
+                                <ResourceDictionary>
+                                    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
+                                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
+                                    <SolidColorBrush x:Key="TextControlForeground" Color="{ThemeResource SystemBaseHighColor}"/>
+                                    <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="{ThemeResource SystemBaseHighColor}"/>
+                                    <SolidColorBrush x:Key="TextControlForegroundFocused" Color="{ThemeResource SystemBaseHighColor}"/>
+                                </ResourceDictionary>
+                            </RichEditBox.Resources>
+                        </RichEditBox>
+                    </ScrollViewer>
+                </Grid>
+
+                <Border x:Name="TerminalSplitter" 
+                        Grid.Row="1" 
+                        Height="2" 
+                        HorizontalAlignment="Stretch"
+                        Background="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                        Visibility="Collapsed"
+                        ManipulationMode="TranslateY"
+                        PointerPressed="TerminalSplitter_PointerPressed"
+                        PointerMoved="TerminalSplitter_PointerMoved"
+                        PointerReleased="TerminalSplitter_PointerReleased"/>
+
+                <local:TerminalControl x:Name="TerminalPanel" 
+                                       Grid.Row="2" 
+                                       Visibility="Collapsed"/>
+            </Grid>
         </Grid>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">

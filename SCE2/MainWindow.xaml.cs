@@ -53,7 +53,6 @@ namespace SCE2
 
         private Button toggleReplaceButton;
         private Popup replacePopup;
-        //private string lastStatusText = "";
         private readonly Queue<List<int>> _searchMatchesPool = new();
 
         private readonly SolidColorBrush KeywordBrush = new SolidColorBrush(Color.FromArgb(255, 86, 156, 214));
@@ -67,6 +66,16 @@ namespace SCE2
         private readonly SolidColorBrush EscapeSequenceBrush = new SolidColorBrush(Color.FromArgb(255, 255, 206, 84));
 
         private SettingsWindow settingsWindow;
+
+        private bool isTerminalVisible = false;
+        private bool isDraggingSplitter = false;
+        private double terminalHeight = 300;
+        private Point lastPointerPosition;
+
+        private bool isGitPanelVisible = false;
+        private bool isDraggingGitSplitter = false;
+        private double gitPanelWidth = 380;
+        private Point lastGitPointerPosition;
 
         public MainWindow()
         {
@@ -249,6 +258,14 @@ namespace SCE2
                         {
                             StatusBarText.Text = $"Error saving file: {ex.Message}";
                         }
+                        break;
+                    case VirtualKey.J:
+                        e.Handled = true;
+                        ToggleTerminal();
+                        break;
+                    case VirtualKey.G:
+                        e.Handled = true;
+                        ToggleGitPanel();
                         break;
                 }
                 return;
@@ -762,5 +779,142 @@ namespace SCE2
         {
             Application.Current.Exit();
         }
+        private void Terminal_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleTerminal();
+        }
+
+        private void ToggleTerminal()
+        {
+            isTerminalVisible = !isTerminalVisible;
+
+            if (isTerminalVisible)
+            {
+                TerminalRow.Height = new GridLength(terminalHeight);
+                TerminalPanel.Visibility = Visibility.Visible;
+                TerminalSplitter.Visibility = Visibility.Visible;
+
+                TerminalPanel.FocusInput();
+            }
+            else
+            {
+                TerminalRow.Height = new GridLength(0);
+                TerminalPanel.Visibility = Visibility.Collapsed;
+                TerminalSplitter.Visibility = Visibility.Collapsed;
+
+                CodeEditor.Focus(FocusState.Programmatic);
+            }
+        }
+        private void TerminalSplitter_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            isDraggingSplitter = true;
+            lastPointerPosition = e.GetCurrentPoint(TerminalSplitter).Position;
+            TerminalSplitter.CapturePointer(e.Pointer);
+        }
+
+        private void TerminalSplitter_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (isDraggingSplitter)
+            {
+                var currentPosition = e.GetCurrentPoint(TerminalSplitter).Position;
+                var deltaY = lastPointerPosition.Y - currentPosition.Y;
+
+                var newHeight = terminalHeight + deltaY;
+                var windowHeight = ((FrameworkElement)this.Content).ActualHeight;
+
+                if (newHeight >= 100 && newHeight <= windowHeight - 200)
+                {
+                    terminalHeight = newHeight;
+                    TerminalRow.Height = new GridLength(terminalHeight);
+                }
+
+                lastPointerPosition = currentPosition;
+            }
+        }
+
+        private void TerminalSplitter_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            isDraggingSplitter = false;
+            TerminalSplitter.ReleasePointerCapture(e.Pointer);
+        }
+
+        private void Git_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleGitPanel();
+        }
+
+        private void ToggleGitPanel()
+        {
+            isGitPanelVisible = !isGitPanelVisible;
+
+            if (isGitPanelVisible)
+            {
+                GitColumn.Width = new GridLength(gitPanelWidth);
+                GitPanel.Visibility = Visibility.Visible;
+                GitSplitter.Visibility = Visibility.Visible;
+
+                UpdateGitContext();
+            }
+            else
+            {
+                GitColumn.Width = new GridLength(0);
+                GitPanel.Visibility = Visibility.Collapsed;
+                GitSplitter.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void UpdateGitContext()
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(currentFilePath))
+                {
+                    GitControlPanel.SetFileContext(currentFilePath);
+                }
+                else
+                {
+                    var currentDir = System.IO.Directory.GetCurrentDirectory();
+                    GitControlPanel.SetWorkingDirectory(currentDir);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Git context update error: {ex.Message}");
+            }
+        }
+
+        private void GitSplitter_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            isDraggingGitSplitter = true;
+            lastGitPointerPosition = e.GetCurrentPoint(GitSplitter).Position;
+            GitSplitter.CapturePointer(e.Pointer);
+        }
+
+        private void GitSplitter_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (isDraggingGitSplitter)
+            {
+                var currentPosition = e.GetCurrentPoint(GitSplitter).Position;
+                var deltaX = currentPosition.X - lastGitPointerPosition.X;
+
+                var newWidth = gitPanelWidth + deltaX;
+                var windowWidth = ((FrameworkElement)this.Content).ActualWidth;
+
+                if (newWidth >= 200 && newWidth <= windowWidth / 2)
+                {
+                    gitPanelWidth = newWidth;
+                    GitColumn.Width = new GridLength(gitPanelWidth);
+                }
+
+                lastGitPointerPosition = currentPosition;
+            }
+        }
+
+        private void GitSplitter_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            isDraggingGitSplitter = false;
+            GitSplitter.ReleasePointerCapture(e.Pointer);
+        }
+
     }
 }
