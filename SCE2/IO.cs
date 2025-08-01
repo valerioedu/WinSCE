@@ -37,11 +37,10 @@ namespace SCE2
                     {
                         string text = await FileIO.ReadTextAsync(file);
 
-                        CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, text);
+                        CodeEditor.LoadText(text);
                         currentFilePath = file.Path;
 
                         DetectLanguageFromFile(file.Name);
-                        ApplySyntaxHighlightingImmediate();
 
                         StatusBarText.Text = $"Opened: {file.Name}";
 
@@ -125,8 +124,7 @@ namespace SCE2
             {
                 try
                 {
-                    string text;
-                    CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+                    string text = CodeEditor.Text;
                     await FileIO.WriteTextAsync(file, text);
                     currentFilePath = file.Path;
 
@@ -148,8 +146,7 @@ namespace SCE2
                 try
                 {
                     var file = await StorageFile.GetFileFromPathAsync(currentFilePath);
-                    string text;
-                    CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+                    string text = CodeEditor.Text;
                     await FileIO.WriteTextAsync(file, text);
                     StatusBarText.Text = "File saved";
                 }
@@ -184,10 +181,8 @@ namespace SCE2
         // Event handlers
         private void New_Click(object sender, RoutedEventArgs e)
         {
-            CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, GetTemplateForLanguage(currentLanguage));
+            CodeEditor.Text = GetTemplateForLanguage(currentLanguage);
             currentFilePath = "";
-
-            ApplySyntaxHighlightingImmediate();
 
             StatusBarText.Text = "New file created";
         }
@@ -219,6 +214,7 @@ namespace SCE2
                 currentLanguage = detectedLanguage;
                 StatusBarText.Text = $"Language auto-detected: {GetLanguageDisplayName(currentLanguage)}";
             }
+            SelectLanguage(currentLanguage);
         }
 
         private void SetLanguage_Click(object sender, RoutedEventArgs e)
@@ -227,8 +223,7 @@ namespace SCE2
             {
                 currentLanguage = language;
                 StatusBarText.Text = $"Language set to {GetLanguageDisplayName(language)}";
-
-                ApplySyntaxHighlightingImmediate();
+                SelectLanguage(language);
             }
         }
 

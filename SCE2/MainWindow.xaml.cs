@@ -29,7 +29,6 @@ namespace SCE2
         private string lastHighlightedText = "";
         private readonly int maxHighlightLength = 1000000;
 
-        private short tabSize = 4;
         private bool autoIndentationEnabled = true;
         private bool autoCompletionEnabled = true;
         private bool autoBraceClosingEnabled = true;
@@ -54,16 +53,6 @@ namespace SCE2
         private Button toggleReplaceButton;
         private Popup replacePopup;
         private readonly Queue<List<int>> _searchMatchesPool = new();
-
-        private readonly SolidColorBrush KeywordBrush = new SolidColorBrush(Color.FromArgb(255, 86, 156, 214));
-        private readonly SolidColorBrush ControlFlowBrush = new SolidColorBrush(Color.FromArgb(255, 216, 160, 223));
-        private readonly SolidColorBrush StringBrush = new SolidColorBrush(Color.FromArgb(255, 206, 145, 120));
-        private readonly SolidColorBrush CommentBrush = new SolidColorBrush(Color.FromArgb(255, 106, 153, 85));
-        private readonly SolidColorBrush NumberBrush = new SolidColorBrush(Color.FromArgb(255, 181, 206, 168));
-        private readonly SolidColorBrush PreprocessorBrush = new SolidColorBrush(Color.FromArgb(255, 155, 155, 155));
-        private readonly SolidColorBrush DefaultBrush = new SolidColorBrush(Color.FromArgb(255, 220, 220, 220));
-        private readonly SolidColorBrush FunctionBrush = new SolidColorBrush(Color.FromArgb(255, 220, 220, 170));
-        private readonly SolidColorBrush EscapeSequenceBrush = new SolidColorBrush(Color.FromArgb(255, 255, 206, 84));
 
         private SettingsWindow settingsWindow;
 
@@ -102,38 +91,12 @@ namespace SCE2
 
             CodeEditor.SelectionChanged += (s, e) =>
             {
-                UpdateCursorPosition();
+                //UpdateCursorPosition();
             };
 
-            CodeEditor.TextChanged += (s, e) =>
-            {
-                if (lineNumbersEnabled)
-                {
-                    UpdateLineNumbers();
-                }
-                UpdateCursorPosition();
-                ScheduleSyntaxHighlighting();
-
-                hasUnsavedChanges = true;
-
-                if (autoSaveEnabled)
-                {
-                    SaveLastSession();
-                }
-            };
-
-            EditorScrollViewer.ViewChanged += (s, e) =>
-            {
-                LineNumbersScrollViewer.ChangeView(
-                    null,
-                    EditorScrollViewer.VerticalOffset,
-                    null,
-                    true);
-            };
-
-            UpdateLineNumbers();
             CreateFindReplacePanel();
             ApplySettings();
+            CodeEditor.UseSpacesInsteadTabs = true;
 
             this.Closed += (s, e) =>
             {
@@ -152,6 +115,8 @@ namespace SCE2
                     settingsWindow.Close();
                 }
             };
+
+            SelectLanguage(currentLanguage);
 
         }
 
@@ -188,7 +153,7 @@ namespace SCE2
                 clearTimer.Tick += (s, args) =>
                 {
                     clearTimer.Stop();
-                    UpdateCursorPosition();
+                    //UpdateCursorPosition();
                 };
                 clearTimer.Start();
 
@@ -222,14 +187,13 @@ namespace SCE2
                         ShowFindPanel();
                         break;
                     case VirtualKey.L:
-                        e.Handled = true;
+                        /*e.Handled = true;
 
                         try
                         {
                             var selection = CodeEditor.Document.Selection;
                             int cursorPosition = selection.StartPosition;
-                            string text;
-                            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+                            string text = CodeEditor.Text;
 
                             int lineStart = cursorPosition;
                             while (lineStart > 0 && text[lineStart - 1] != '\n' && text[lineStart - 1] != '\r')
@@ -257,7 +221,7 @@ namespace SCE2
                         catch (Exception ex)
                         {
                             StatusBarText.Text = $"Error saving file: {ex.Message}";
-                        }
+                        }*/
                         break;
                     case VirtualKey.J:
                         e.Handled = true;
@@ -273,26 +237,18 @@ namespace SCE2
 
             switch (e.Key)
             {
-                case Windows.System.VirtualKey.Tab:
-                    e.Handled = true;
-                    HandleTabKey();
-                    break;
-                case Windows.System.VirtualKey.Back:
-                    HandleDelKey(e);
-                    break;
-                case Windows.System.VirtualKey.Enter:
+                /*case Windows.System.VirtualKey.Enter:
                     HandleEnterKey(e);
-                    break;
+                    break;*/
             }
         }
 
         private void HandleEnterKey(Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
-            if (!autoIndentationEnabled) return;
+            /*if (!autoIndentationEnabled) return;
             var selection = CodeEditor.Document.Selection;
             var cursorPosition = selection.StartPosition;
-            string text;
-            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+            string text = CodeEditor.Text;
 
             var currentIndentation = GetCurrentLineIndentation(text, cursorPosition);
 
@@ -323,7 +279,7 @@ namespace SCE2
                     var indentedText = "\n" + currentIndentation;
                     selection.TypeText(indentedText);
                 }
-            }
+            }*/
         }
 
         private string GetCurrentLineIndentation(string text, int cursorPosition)
@@ -380,59 +336,7 @@ namespace SCE2
 
         private string GetIndentString()
         {
-            return new string(' ', tabSize);
-        }
-
-        private void HandleDelKey(Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
-        {
-            var selection = CodeEditor.Document.Selection;
-            var cursorPosition = selection.StartPosition;
-            string text;
-            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-
-            if (cursorPosition >= tabSize)
-            {
-                var column = GetColumnPosition(text, cursorPosition);
-                var atTabStop = (column - 1) % tabSize == 0;
-                if (atTabStop)
-                {
-                    var allSpaces = true;
-                    for (var i = 1; i <= tabSize; i++)
-                    {
-                        if (cursorPosition - i < 0 || text[cursorPosition - i] != ' ')
-                        {
-                            allSpaces = false;
-                            break;
-                        }
-                    }
-
-                    if (allSpaces)
-                    {
-                        e.Handled = true;
-                        var range = CodeEditor.Document.GetRange(cursorPosition - tabSize, cursorPosition);
-                        range.Text = "";
-                        return;
-                    }
-                }
-            }
-        }
-
-        private void HandleTabKey()
-        {
-            var selection = CodeEditor.Document.Selection;
-            var cursorPosition = selection.StartPosition;
-
-            string text;
-            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-
-            var column = GetColumnPosition(text, cursorPosition);
-
-            var spacesToAdd = tabSize - ((column - 1) % tabSize);
-
-            for (var i = 0; i < spacesToAdd; i++)
-            {
-                selection.TypeText(" ");
-            }
+            return new string(' ', CodeEditor.NumberOfSpacesForTab);
         }
 
         private int GetColumnPosition(string text, int cursorPosition)
@@ -447,15 +351,14 @@ namespace SCE2
             return column;
         }
 
-        private void UpdateCursorPosition()
+        /*private void UpdateCursorPosition()
         {
-            string text;
-            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-            var selection = CodeEditor.Document.Selection;
-            var cursorIndex = selection.StartPosition;
+            string text = CodeEditor.Text;
+            //var selection = CodeEditor.Document.Selection;
+            //var cursorIndex = selection.StartPosition;
 
-            var position = GetCursorPosition(text, cursorIndex);
-            var last = cursorIndex > 0 && text.Length > 0 ? text[Math.Min(cursorIndex - 1, text.Length - 1)] : '\0';
+            //var position = GetCursorPosition(text, cursorIndex);
+            //var last = cursorIndex > 0 && text.Length > 0 ? text[Math.Min(cursorIndex - 1, text.Length - 1)] : '\0';
 
             var fileName = string.IsNullOrEmpty(currentFilePath) ? "Untitled" : System.IO.Path.GetFileName(currentFilePath);
 
@@ -463,43 +366,7 @@ namespace SCE2
                 StatusBarText.Text = $"Ln {position.line}, Col {position.column}, Key: {last} | {fileName}";
             else
                 StatusBarText.Text = $"Ln {position.line}, Col {position.column} | {fileName}";
-        }
-
-        private void UpdateLineNumbers()
-        {
-            string text;
-            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-            var selection = CodeEditor.Document.Selection;
-            var cursorIndex = selection.StartPosition;
-
-            var position = GetCursorPosition(text, cursorIndex);
-            var line = position.line;
-            var column = position.column;
-
-            var lineCount = 1;
-            for (var i = 0; i < text.Length - 1; i++)
-            {
-                if (text[i] == '\r' || text[i] == '\n')
-                {
-                    lineCount++;
-                    if (text[i] == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
-                        i++;
-                }
-            }
-
-            var lineNumbers = "";
-            for (var i = 1; i <= lineCount; i++)
-            {
-                lineNumbers += i + "\n";
-            }
-
-            if (string.IsNullOrEmpty(lineNumbers))
-            {
-                lineNumbers = "1";
-            }
-
-            LineNumbers.Text = lineNumbers;
-        }
+        }*/
 
         private (int line, int column) GetCursorPosition(string text, int cursorIndex)
         {
@@ -522,86 +389,6 @@ namespace SCE2
             return (line, column);
         }
 
-        private void CodeEditor_CharacterReceived(UIElement sender, Microsoft.UI.Xaml.Input.CharacterReceivedRoutedEventArgs args)
-        {
-            if (!autoBraceClosingEnabled && !autoCompletionEnabled) return;
-            switch (args.Character)
-            {
-                case '{':
-                    if (!autoBraceClosingEnabled) return;
-                    var selection = CodeEditor.Document.Selection;
-                    selection.TypeText("}");
-                    selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
-                    break;
-                case '(':
-                    if (!autoBraceClosingEnabled) return;
-                    selection = CodeEditor.Document.Selection;
-                    selection.TypeText(")");
-                    selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
-                    break;
-                case '[':
-                    if (!autoBraceClosingEnabled) return;
-                    selection = CodeEditor.Document.Selection;
-                    selection.TypeText("]");
-                    selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
-                    break;
-                case '"':
-                    if (!autoCompletionEnabled) return;
-                    selection = CodeEditor.Document.Selection;
-                    selection.TypeText("\"");
-                    selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
-                    break;
-                case '\'':
-                    if (!autoCompletionEnabled) return;
-                    selection = CodeEditor.Document.Selection;
-                    selection.TypeText("'");
-                    selection.SetRange(selection.StartPosition - 1, selection.StartPosition - 1);
-                    break;
-                case '*':
-                    if (!autoCompletionEnabled) return;
-                    string text;
-                    CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-                    selection = CodeEditor.Document.Selection;
-                    var cursorPosition = selection.StartPosition;
-
-                    if (cursorPosition > 0 && text[cursorPosition - 2] == '/')
-                    {
-                        selection.TypeText("*/");
-                        selection.SetRange(cursorPosition, cursorPosition);
-                    }
-                    break;
-            }
-
-        }
-
-        private double GetLineHeight()
-        {
-            try
-            {
-                string text;
-                CodeEditor.Document.GetText(TextGetOptions.None, out text);
-
-                if (string.IsNullOrEmpty(text))
-                {
-                    CodeEditor.Document.SetText(TextSetOptions.None, "A");
-                    var tempRange = CodeEditor.Document.GetRange(0, 1);
-                    tempRange.GetRect(PointOptions.None, out Rect tempRect, out int tempHit);
-                    CodeEditor.Document.SetText(TextSetOptions.None, "");
-                    return tempRect.Height;
-                }
-                else
-                {
-                    var range = CodeEditor.Document.GetRange(0, 1);
-                    range.GetRect(PointOptions.None, out Rect rect, out int hit);
-                    return rect.Height;
-                }
-            }
-            catch
-            {
-                return CodeEditor.FontSize * 1.2;
-            }
-        }
-
         private void Settings_Click(object sender, RoutedEventArgs e)
         {
             if (settingsWindow != null)
@@ -621,7 +408,7 @@ namespace SCE2
             {
                 var localSettings = ApplicationData.Current.LocalSettings;
 
-                tabSize = (short)(localSettings.Values["TabSize"] ?? 4);
+                CodeEditor.NumberOfSpacesForTab = (short)(localSettings.Values["TabSize"] ?? 4);
                 autoIndentationEnabled = (bool)(localSettings.Values["AutoIndentation"] ?? true);
                 autoCompletionEnabled = (bool)(localSettings.Values["AutoCompletion"] ?? true);
                 autoBraceClosingEnabled = (bool)(localSettings.Values["AutoBraceClosing"] ?? true);
@@ -634,7 +421,7 @@ namespace SCE2
             }
             catch
             {
-                tabSize = 4;
+                CodeEditor.NumberOfSpacesForTab = 4;
                 autoIndentationEnabled = true;
                 autoCompletionEnabled = true;
                 autoBraceClosingEnabled = true;
@@ -652,7 +439,7 @@ namespace SCE2
             {
                 var localSettings = ApplicationData.Current.LocalSettings;
 
-                localSettings.Values["TabSize"] = tabSize;
+                localSettings.Values["TabSize"] = CodeEditor.NumberOfSpacesForTab;
                 localSettings.Values["AutoIndentation"] = autoIndentationEnabled;
                 localSettings.Values["AutoCompletion"] = autoCompletionEnabled;
                 localSettings.Values["AutoBraceClosing"] = autoBraceClosingEnabled;
@@ -691,7 +478,7 @@ namespace SCE2
                         lastContent = lastContent.TrimEnd('\r', '\n');
                     }
 
-                    CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, lastContent);
+                    //CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, lastContent);
                 }
 
                 if (!string.IsNullOrEmpty(lastFilePath))
@@ -719,8 +506,7 @@ namespace SCE2
             {
                 var localSettings = ApplicationData.Current.LocalSettings;
 
-                string text;
-                CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+                string text = CodeEditor.Text;
 
                 localSettings.Values["LastContent"] = text;
                 localSettings.Values["LastFilePath"] = currentFilePath;
@@ -731,9 +517,8 @@ namespace SCE2
 
         private void ApplySettings()
         {
-            LineNumbersScrollViewer.Visibility = lineNumbersEnabled ? Visibility.Visible : Visibility.Collapsed;
-
-            CodeEditor.TextWrapping = wordWrapEnabled ? TextWrapping.Wrap : TextWrapping.NoWrap;
+            if (lineNumbersEnabled == true) CodeEditor.ShowLineNumbers = true;
+            else CodeEditor.ShowLineNumbers = false;
 
             var editorParent = CodeEditor.Parent as FrameworkElement;
             if (editorParent != null)
@@ -756,7 +541,7 @@ namespace SCE2
         public void UpdateSettings(short newTabSize, bool newAutoIndent, bool newAutoCompletion,
             bool newAutoBraceClosing, bool newLineNumbers, bool newWordWrap, bool newAutoSave, bool newRestoreSession, int newAutoSaveInterval)
         {
-            tabSize = newTabSize;
+            CodeEditor.NumberOfSpacesForTab = newTabSize;
             autoIndentationEnabled = newAutoIndent;
             autoCompletionEnabled = newAutoCompletion;
             autoBraceClosingEnabled = newAutoBraceClosing;
@@ -772,7 +557,7 @@ namespace SCE2
 
         public (short tabSize, bool autoIndent, bool autoCompletion, bool autoBraceClosing, bool lineNumbers, bool wordWrap, bool autoSave, bool restoreSession, int autoSaveInterval) GetCurrentSettings()
         {
-            return (tabSize, autoIndentationEnabled, autoCompletionEnabled, autoBraceClosingEnabled, lineNumbersEnabled, wordWrapEnabled, autoSaveEnabled, restoreSessionEnabled, autoSaveInterval);
+            return ((short)CodeEditor.NumberOfSpacesForTab, autoIndentationEnabled, autoCompletionEnabled, autoBraceClosingEnabled, lineNumbersEnabled, wordWrapEnabled, autoSaveEnabled, restoreSessionEnabled, autoSaveInterval);
         }
 
         private async void Quit_Click(object sender, RoutedEventArgs e)

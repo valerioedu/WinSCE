@@ -254,14 +254,14 @@ namespace SCE2
             findReplacePanel.Visibility = Visibility.Visible;
             findTextBox.Focus(FocusState.Programmatic);
 
-            var selection = CodeEditor.Document.Selection;
+            /*var selection = CodeEditor.Document.Selection;
             if (selection.Length > 0)
             {
                 string selectedText;
                 selection.GetText(Microsoft.UI.Text.TextGetOptions.None, out selectedText);
                 findTextBox.Text = selectedText;
                 findTextBox.SelectAll();
-            }
+            }*/
         }
 
         private void HideFindPanel()
@@ -291,8 +291,7 @@ namespace SCE2
             searchMatches.Clear();
             currentMatchIndex = -1;
 
-            string text;
-            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+            string text = CodeEditor.Text;
 
             int index = 0;
             while ((index = text.IndexOf(searchTerm, index, StringComparison.OrdinalIgnoreCase)) != -1)
@@ -333,27 +332,7 @@ namespace SCE2
             if (currentMatchIndex < 0 || currentMatchIndex >= searchMatches.Count) return;
 
             int matchPos = searchMatches[currentMatchIndex];
-            string text;
-            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
-
-            int lineNumber = 1;
-            for (int i = 0; i < matchPos && i < text.Length; i++)
-            {
-                if (text[i] == '\r' || text[i] == '\n')
-                {
-                    lineNumber++;
-                    if (text[i] == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
-                        i++;
-                }
-            }
-
-            double estimatedLineHeight = GetLineHeight();
-            double targetVerticalOffset = (lineNumber - 1) * estimatedLineHeight;
-
-            double viewportHeight = EditorScrollViewer.ViewportHeight;
-            double centeredOffset = Math.Max(0, targetVerticalOffset - (viewportHeight / 2));
-
-            EditorScrollViewer.ChangeView(null, targetVerticalOffset, null, true);
+            
         }
 
         private void FindNext()
@@ -379,7 +358,7 @@ namespace SCE2
             int matchPos = searchMatches[currentMatchIndex];
             string searchTerm = findTextBox.Text;
 
-            CodeEditor.Document.Selection.SetRange(matchPos, matchPos + searchTerm.Length);
+            //CodeEditor.Document.Selection.SetRange(matchPos, matchPos + searchTerm.Length);
             matchCountText.Text = $"{currentMatchIndex + 1} of {searchMatches.Count}";
         }
 
@@ -387,8 +366,8 @@ namespace SCE2
         {
             if (currentMatchIndex < 0 || string.IsNullOrEmpty(replaceTextBox.Text)) return;
 
-            var selection = CodeEditor.Document.Selection;
-            selection.TypeText(replaceTextBox.Text);
+            //var selection = CodeEditor.Document.Selection;
+            //selection.TypeText(replaceTextBox.Text);
 
             SearchText(findTextBox.Text);
         }
@@ -397,11 +376,10 @@ namespace SCE2
         {
             if (searchMatches.Count == 0 || string.IsNullOrEmpty(replaceTextBox.Text)) return;
 
-            string text;
-            CodeEditor.Document.GetText(Microsoft.UI.Text.TextGetOptions.None, out text);
+            string text = CodeEditor.Text;
 
             string newText = text.Replace(findTextBox.Text, replaceTextBox.Text, StringComparison.OrdinalIgnoreCase);
-            CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, newText);
+            CodeEditor.Text = newText;
 
             int replacements = searchMatches.Count;
             StatusBarText.Text = $"Replaced {replacements} occurrences";
