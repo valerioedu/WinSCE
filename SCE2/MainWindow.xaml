@@ -142,7 +142,7 @@
                 </Grid.RowDefinitions>
 
                 <Grid Grid.Row="0" BorderThickness="0,1,0,1" BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"/>
-                <textcontrolbox:TextControlBox x:Name="CodeEditor" FontFamily="Consolas" FontSize="14" PreviewKeyDown="CodeEditor_PreviewKeyDown"/>
+                <textcontrolbox:TextControlBox x:Name="CodeEditor" FontFamily="Consolas" FontSize="14" PreviewKeyDown="CodeEditor_PreviewKeyDown" />
             
 
                 <Border x:Name="TerminalSplitter" 

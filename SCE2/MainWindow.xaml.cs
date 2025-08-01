@@ -12,6 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Text.RegularExpressions;
+using TextControlBoxNS;
 using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Pickers;
@@ -34,7 +35,7 @@ namespace SCE2
         private bool autoBraceClosingEnabled = true;
         private bool lineNumbersEnabled = true;
         private bool wordWrapEnabled = false;
-        
+
         private bool autoSaveEnabled = false;
         private bool restoreSessionEnabled = true;
         private DispatcherTimer autoSaveTimer;
@@ -78,6 +79,9 @@ namespace SCE2
             appWindow.TitleBar.ExtendsContentIntoTitleBar = true;
             appWindow.TitleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
 
+            CursorSize cursorSize = CodeEditor.CursorSize;
+            CodeEditor.Focus(FocusState.Keyboard);
+
             this.SetTitleBar(CustomTitleBar);
 
             LoadSettings();
@@ -91,7 +95,29 @@ namespace SCE2
 
             CodeEditor.SelectionChanged += (s, e) =>
             {
-                //UpdateCursorPosition();
+                UpdateCursorPosition();
+            };
+
+            CodeEditor.TextChanged += (e) =>
+            {
+                hasUnsavedChanges = true;
+                UpdateCursorPosition();
+            };
+
+            CodeEditor.GotFocus += (e) =>
+            {
+                CodeEditor.CursorSize = cursorSize;
+
+            };
+
+            CodeEditor.LosingFocus += (s,e) =>
+            {
+                CodeEditor.CursorSize = new CursorSize(0, 0);
+            };
+
+            CodeEditor.PointerPressed += (s, e) =>
+            {
+                CodeEditor.Focus(FocusState.Keyboard);
             };
 
             CreateFindReplacePanel();
@@ -117,7 +143,6 @@ namespace SCE2
             };
 
             SelectLanguage(currentLanguage);
-
         }
 
         private void FileMenuShortcut_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
@@ -153,7 +178,7 @@ namespace SCE2
                 clearTimer.Tick += (s, args) =>
                 {
                     clearTimer.Stop();
-                    //UpdateCursorPosition();
+                    UpdateCursorPosition();
                 };
                 clearTimer.Start();
 
@@ -187,41 +212,8 @@ namespace SCE2
                         ShowFindPanel();
                         break;
                     case VirtualKey.L:
-                        /*e.Handled = true;
-
-                        try
-                        {
-                            var selection = CodeEditor.Document.Selection;
-                            int cursorPosition = selection.StartPosition;
-                            string text = CodeEditor.Text;
-
-                            int lineStart = cursorPosition;
-                            while (lineStart > 0 && text[lineStart - 1] != '\n' && text[lineStart - 1] != '\r')
-                            {
-                                lineStart--;
-                            }
-
-                            int lineEnd = cursorPosition;
-                            while (lineEnd < text.Length && text[lineEnd] != '\n' && text[lineEnd] != '\r')
-                            {
-                                lineEnd++;
-                            }
-
-                            if (lineEnd < text.Length && (text[lineEnd] == '\n' || text[lineEnd] == '\r'))
-                            {
-                                lineEnd++;
-                                if (lineEnd < text.Length && text[lineEnd - 1] == '\r' && text[lineEnd] == '\n')
-                                {
-                                    lineEnd++;
-                                }
-                            }
-
-                            CodeEditor.Document.Selection.SetRange(lineStart, lineEnd);
-                        }
-                        catch (Exception ex)
-                        {
-                            StatusBarText.Text = $"Error saving file: {ex.Message}";
-                        }*/
+                        e.Handled = true;
+                        SelectCurrentLine();
                         break;
                     case VirtualKey.J:
                         e.Handled = true;
@@ -237,83 +229,86 @@ namespace SCE2
 
             switch (e.Key)
             {
-                /*case Windows.System.VirtualKey.Enter:
+                case Windows.System.VirtualKey.Enter:
                     HandleEnterKey(e);
-                    break;*/
+                    break;
+            }
+        }
+
+        private void SelectCurrentLine()
+        {
+            try
+            {
+                var cursorPos = CodeEditor.CursorPosition;
+                var currentLine = cursorPos.LineNumber;
+                CodeEditor.SelectLine(currentLine);
+            }
+            catch (Exception ex)
+            {
+                StatusBarText.Text = $"Error selecting line: {ex.Message}";
             }
         }
 
         private void HandleEnterKey(Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
-            /*if (!autoIndentationEnabled) return;
-            var selection = CodeEditor.Document.Selection;
-            var cursorPosition = selection.StartPosition;
-            string text = CodeEditor.Text;
+            if (!autoIndentationEnabled) return;
 
-            var currentIndentation = GetCurrentLineIndentation(text, cursorPosition);
-
-            if (cursorPosition > 0 && cursorPosition < text.Length &&
-                text[cursorPosition - 1] == '{' && text[cursorPosition] == '}')
+            try
             {
-                e.Handled = true;
+                var cursorPos = CodeEditor.CursorPosition;
+                var currentLine = cursorPos.LineNumber;
+                var currentChar = cursorPos.CharacterPosition;
+                string currentLineText = CodeEditor.GetLineText(currentLine);
 
-                var indentedText = "\n" + currentIndentation + GetIndentString() + "\n" + currentIndentation;
-                selection.TypeText(indentedText);
+                var currentIndentation = GetCurrentLineIndentation(currentLineText);
 
-                var newCursorPosition = cursorPosition + currentIndentation.Length + GetIndentString().Length + 1;
-                selection.SetRange(newCursorPosition, newCursorPosition);
-            }
-            else
-            {
-                var shouldIndentNext = ShouldIndentNextLine(text, cursorPosition);
-
-                e.Handled = true;
-
-                if (shouldIndentNext)
+                if (currentChar > 0 && currentChar < currentLineText.Length &&
+                    currentLineText[currentChar - 1] == '{' && currentLineText[currentChar] == '}')
                 {
-                    var indentedText = "\n" + currentIndentation + GetIndentString();
-                    selection.TypeText(indentedText);
+                    e.Handled = true;
+
+                    CodeEditor.AddLine(currentLine + 1, currentIndentation + GetIndentString());
+                    CodeEditor.AddLine(currentLine + 2, currentIndentation);
+
+                    CodeEditor.SetCursorPosition(currentLine + 1, (currentIndentation + GetIndentString()).Length);
                 }
                 else
                 {
-                    var indentedText = "\n" + currentIndentation;
-                    selection.TypeText(indentedText);
+                    var shouldIndentNext = ShouldIndentNextLine(currentLineText);
+
+                    e.Handled = true;
+
+                    string newLineIndentation = currentIndentation;
+                    if (shouldIndentNext)
+                    {
+                        newLineIndentation += GetIndentString();
+                    }
+
+                    CodeEditor.AddLine(currentLine + 1, newLineIndentation);
+                    CodeEditor.SetCursorPosition(currentLine + 1, newLineIndentation.Length);
                 }
-            }*/
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Auto-indentation error: {ex.Message}");
+            }
         }
 
-        private string GetCurrentLineIndentation(string text, int cursorPosition)
+
+
+        private string GetCurrentLineIndentation(string lineText)
         {
-            var lineStart = cursorPosition;
-            while (lineStart > 0 && text[lineStart - 1] != '\n' && text[lineStart - 1] != '\r')
-            {
-                lineStart--;
-            }
-
             var indentation = "";
-            for (var i = lineStart; i < text.Length && (text[i] == ' ' || text[i] == '\t'); i++)
+            for (var i = 0; i < lineText.Length && (lineText[i] == ' ' || lineText[i] == '\t'); i++)
             {
-                indentation += text[i];
+                indentation += lineText[i];
             }
-
             return indentation;
         }
 
-        private bool ShouldIndentNextLine(string text, int cursorPosition)
+        private bool ShouldIndentNextLine(string lineText)
         {
-            var lineStart = cursorPosition;
-            while (lineStart > 0 && text[lineStart - 1] != '\n' && text[lineStart - 1] != '\r')
-            {
-                lineStart--;
-            }
-
-            var lineContent = "";
-            for (var i = lineStart; i < cursorPosition && i < text.Length; i++)
-            {
-                lineContent += text[i];
-            }
-
-            var trimmedLine = lineContent.TrimEnd();
+            var trimmedLine = lineText.TrimEnd();
 
             return trimmedLine.EndsWith("{") ||
                    trimmedLine.EndsWith(":") ||
@@ -339,54 +334,34 @@ namespace SCE2
             return new string(' ', CodeEditor.NumberOfSpacesForTab);
         }
 
-        private int GetColumnPosition(string text, int cursorPosition)
+        private void UpdateCursorPosition()
         {
-            var column = 1;
-            for (var i = cursorPosition - 1; i >= 0; i--)
+            try
             {
-                if (text[i] == '\n' || text[i] == '\r')
-                    break;
-                column++;
-            }
-            return column;
-        }
+                var cursorPos = CodeEditor.CursorPosition;
+                var currentLine = cursorPos.LineNumber;
+                var currentChar = cursorPos.CharacterPosition;
 
-        /*private void UpdateCursorPosition()
-        {
-            string text = CodeEditor.Text;
-            //var selection = CodeEditor.Document.Selection;
-            //var cursorIndex = selection.StartPosition;
-
-            //var position = GetCursorPosition(text, cursorIndex);
-            //var last = cursorIndex > 0 && text.Length > 0 ? text[Math.Min(cursorIndex - 1, text.Length - 1)] : '\0';
-
-            var fileName = string.IsNullOrEmpty(currentFilePath) ? "Untitled" : System.IO.Path.GetFileName(currentFilePath);
-
-            if (last > 27 && last < 128)
-                StatusBarText.Text = $"Ln {position.line}, Col {position.column}, Key: {last} | {fileName}";
-            else
-                StatusBarText.Text = $"Ln {position.line}, Col {position.column} | {fileName}";
-        }*/
-
-        private (int line, int column) GetCursorPosition(string text, int cursorIndex)
-        {
-            var line = 1;
-            var column = 1;
-
-            for (var i = 0; i < cursorIndex && i < text.Length; i++)
-            {
-                if (text[i] == '\r')
+                var currentLineText = CodeEditor.GetLineText(currentLine);
+                var displayChar = '\0';
+                if (currentChar > 0 && currentChar <= currentLineText.Length)
                 {
-                    line++;
-                    column = 1;
+                    displayChar = currentLineText[Math.Min(currentChar - 1, currentLineText.Length - 1)];
                 }
+
+                var fileName = string.IsNullOrEmpty(currentFilePath) ? "Untitled" : System.IO.Path.GetFileName(currentFilePath);
+
+                if (displayChar > 27 && displayChar < 128)
+                    StatusBarText.Text = $"Ln {currentLine + 1}, Col {currentChar + 1}, Key: {displayChar} | {fileName}";
                 else
-                {
-                    column++;
-                }
+                    StatusBarText.Text = $"Ln {currentLine + 1}, Col {currentChar + 1} | {fileName}";
             }
-
-            return (line, column);
+            catch (Exception ex)
+            {
+                var fileName = string.IsNullOrEmpty(currentFilePath) ? "Untitled" : System.IO.Path.GetFileName(currentFilePath);
+                StatusBarText.Text = $"Ln 1, Col 1 | {fileName}";
+                System.Diagnostics.Debug.WriteLine($"UpdateCursorPosition error: {ex.Message}");
+            }
         }
 
         private void Settings_Click(object sender, RoutedEventArgs e)
@@ -478,7 +453,7 @@ namespace SCE2
                         lastContent = lastContent.TrimEnd('\r', '\n');
                     }
 
-                    //CodeEditor.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, lastContent);
+                    CodeEditor.SetText(lastContent);
                 }
 
                 if (!string.IsNullOrEmpty(lastFilePath))
@@ -700,6 +675,5 @@ namespace SCE2
             isDraggingGitSplitter = false;
             GitSplitter.ReleasePointerCapture(e.Pointer);
         }
-
     }
 }
