@@ -262,30 +262,17 @@ namespace SCE2
 
                 var currentIndentation = GetCurrentLineIndentation(currentLineText);
 
-                if (currentChar > 0 && currentChar < currentLineText.Length &&
+                if (currentChar > 0 && currentChar == currentLineText.Length - 1 &&
                     currentLineText[currentChar - 1] == '{' && currentLineText[currentChar] == '}')
                 {
                     e.Handled = true;
-
+                    string text = currentLineText.Substring(0, currentChar);
+                    CodeEditor.SetLineText(currentLine, text);
                     CodeEditor.AddLine(currentLine + 1, currentIndentation + GetIndentString());
                     CodeEditor.AddLine(currentLine + 2, currentIndentation);
+                    CodeEditor.SetLineText(currentLine + 2, currentIndentation + "}");
 
                     CodeEditor.SetCursorPosition(currentLine + 1, (currentIndentation + GetIndentString()).Length);
-                }
-                else
-                {
-                    var shouldIndentNext = ShouldIndentNextLine(currentLineText);
-
-                    e.Handled = true;
-
-                    string newLineIndentation = currentIndentation;
-                    if (shouldIndentNext)
-                    {
-                        newLineIndentation += GetIndentString();
-                    }
-
-                    CodeEditor.AddLine(currentLine + 1, newLineIndentation);
-                    CodeEditor.SetCursorPosition(currentLine + 1, newLineIndentation.Length);
                 }
             }
             catch (Exception ex)
