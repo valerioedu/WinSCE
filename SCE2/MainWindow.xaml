@@ -136,29 +136,52 @@
 
             <Grid Grid.Column="2">
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition x:Name="TerminalRow" Height="0"/>
                 </Grid.RowDefinitions>
 
-                <Grid Grid.Row="0" BorderThickness="0,1,0,1" BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"/>
-                <textcontrolbox:TextControlBox x:Name="CodeEditor" FontFamily="Consolas" FontSize="14" PreviewKeyDown="CodeEditor_PreviewKeyDown" />
-            
+                <ScrollViewer x:Name="TabScrollViewer" 
+                  Grid.Row="0"
+                  HorizontalScrollBarVisibility="Auto" 
+                  VerticalScrollBarVisibility="Disabled"
+                  HorizontalScrollMode="Enabled" 
+                  VerticalScrollMode="Disabled"
+                  ZoomMode="Disabled" 
+                  Height="35"
+                  Background="{ThemeResource SystemChromeLowColor}"
+                  BorderThickness="0,1,0,0" 
+                  BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}">
+
+                    <StackPanel x:Name="TabContainer" 
+                    Orientation="Horizontal"
+                    VerticalAlignment="Center"
+                    Margin="5,2,5,2"/>
+
+                </ScrollViewer>
+
+                <Grid Grid.Row="1" BorderThickness="0,0,0,1" BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"/>
+                <textcontrolbox:TextControlBox x:Name="CodeEditor" 
+                                   Grid.Row="1"
+                                   FontFamily="Consolas" 
+                                   FontSize="14" 
+                                   PreviewKeyDown="CodeEditor_PreviewKeyDown" />
 
                 <Border x:Name="TerminalSplitter" 
-                        Grid.Row="1" 
-                        Height="2" 
-                        HorizontalAlignment="Stretch"
-                        Background="{ThemeResource SystemControlForegroundBaseLowBrush}"
-                        Visibility="Collapsed"
-                        ManipulationMode="TranslateY"
-                        PointerPressed="TerminalSplitter_PointerPressed"
-                        PointerMoved="TerminalSplitter_PointerMoved"
-                        PointerReleased="TerminalSplitter_PointerReleased"/>
+            Grid.Row="2" 
+            Height="2" 
+            HorizontalAlignment="Stretch"
+            Background="{ThemeResource SystemControlForegroundBaseLowBrush}"
+            Visibility="Collapsed"
+            ManipulationMode="TranslateY"
+            PointerPressed="TerminalSplitter_PointerPressed"
+            PointerMoved="TerminalSplitter_PointerMoved"
+            PointerReleased="TerminalSplitter_PointerReleased"/>
 
                 <local:TerminalControl x:Name="TerminalPanel" 
-                                       Grid.Row="2" 
-                                       Visibility="Collapsed"/>
+                           Grid.Row="3" 
+                           Visibility="Collapsed"/>
             </Grid>
         </Grid>
 

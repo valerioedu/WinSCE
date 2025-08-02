@@ -143,6 +143,7 @@ namespace SCE2
             };
 
             SelectLanguage(currentLanguage);
+            CreateTab("test.c");
         }
 
         private void FileMenuShortcut_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
@@ -661,6 +662,101 @@ namespace SCE2
         {
             isDraggingGitSplitter = false;
             GitSplitter.ReleasePointerCapture(e.Pointer);
+        }
+
+        private Button CreateTab(string tabText, string tabId = null)
+        {
+            if (string.IsNullOrEmpty(tabId))
+                tabId = Guid.NewGuid().ToString();
+
+            var tabButton = new Button
+            {
+                Name = $"test.c",
+                Tag = tabId,
+                Background = new SolidColorBrush(Colors.Transparent),
+                BorderThickness = new Thickness(1,0,1,1),
+                BorderBrush = new SolidColorBrush(Colors.Gray),
+                CornerRadius = new CornerRadius(0, 0, 8, 8),
+                Margin = new Thickness(0, 0, 2, 0),
+                Padding = new Thickness(0),
+                Height = 30,
+                MinWidth = 100,
+                MaxWidth = 200,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var contentPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 4, 0)
+            };
+
+            var textBlock = new TextBlock
+            {
+                Text = tabText,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 0),
+                FontSize = 12,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 140
+            };
+
+            var isDarkTheme = Application.Current.RequestedTheme == ApplicationTheme.Dark;
+            var oppositeColor = isDarkTheme ? Colors.White : Colors.Black;
+
+            var closeButton = new Button
+            {
+                Content = "×",
+                Width = 18,
+                Height = 18,
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Background = new SolidColorBrush(Colors.Transparent),
+                Foreground = new SolidColorBrush(oppositeColor),
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(0),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                CornerRadius = new CornerRadius(9),
+                Tag = tabId
+            };
+
+            closeButton.Click += (s, e) =>
+            {
+                DestroyTab(tabId);
+            };
+
+            contentPanel.Children.Add(textBlock);
+            contentPanel.Children.Add(closeButton);
+
+            tabButton.Content = contentPanel;
+
+            TabContainer.Children.Add(tabButton);
+
+            return tabButton;
+        }
+
+        private bool DestroyTab(string tabId)
+        {
+            try
+            {
+                var tabButton = TabContainer.Children.Cast<Button>()
+                    .FirstOrDefault(b => b.Tag.ToString() == tabId);
+
+                if (tabButton != null)
+                {
+                    TabContainer.Children.Remove(tabButton);
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error destroying tab: {ex.Message}");
+                return false;
+            }
         }
     }
 }

@@ -18,10 +18,17 @@ namespace SCE2
         readonly string CommentColor = "#6A9955";
         readonly string NumberColor = "#B5CEA8";
         readonly string PreprocessorColor = "#9B9B9B";
-        readonly string DefaultColor = "#DCDCDC";
-        readonly string DefaultColorBlack = "#242424";
         readonly string FunctionColor = "#DCDCAA";
         readonly string EscapeSequenceColor = "#FFCE54";
+
+        readonly string KeywordColorDark = "#1F5F99";
+        readonly string ControlFlowColorDark = "#8B4A9C";
+        readonly string StringColorDark = "#A0522D";
+        readonly string CommentColorDark = "#4A7C3B";
+        readonly string NumberColorDark = "#6B8E5A";
+        readonly string PreprocessorColorDark = "#6B6B6B";
+        readonly string FunctionColorDark = "#B8860B";
+        readonly string EscapeSequenceColorDark = "#E67E22";
 
         public void SelectLanguage(string extension)
         {
@@ -44,18 +51,18 @@ namespace SCE2
                         },
                         Highlights = new SyntaxHighlights[]
                         {
-                            new SyntaxHighlights(@"\b\d+\.?\d*[fFlL]?\b", NumberColor, NumberColor),
-                            new SyntaxHighlights(@"\b0[xX][0-9a-fA-F]+\b", NumberColor, NumberColor),
-                            new SyntaxHighlights(@"\b([a-zA-Z_]\w*)\s*(?=\()", FunctionColor, FunctionColor),
-                            new SyntaxHighlights(@"\b(if|else|for|while|do|switch|case|default|break|continue|goto|return)\b", ControlFlowColor, ControlFlowColor),
-                            new SyntaxHighlights(@"\b(int|char|float|double|void|struct|enum|asm|typedef|const|static|extern|auto|register|volatile|sizeof|union|long|short|signed|unsigned)\b", KeywordColor, KeywordColor),
-                            new SyntaxHighlights(@"""(?:[^""\\]|\\.)*""", StringColor, StringColor),
-                            new SyntaxHighlights(@"(?<=#\s*include\s*)[<""][^>""]+[>""]", StringColor, StringColor),
-                            new SyntaxHighlights(@"'(?:[^'\\]|\\.)*'", StringColor, StringColor),
-                            new SyntaxHighlights(@"\\[abfnrtv\\'\""]", EscapeSequenceColor, EscapeSequenceColor),
-                            new SyntaxHighlights(@"^\s*#\s*\w+", PreprocessorColor, PreprocessorColor),
-                            new SyntaxHighlights(@"//.*?(?=\r|\n|$)", CommentColor, CommentColor),
-                            new SyntaxHighlights(@"/\*[\s\S]*?\*/", CommentColor, CommentColor)
+                            new SyntaxHighlights(@"\b\d+\.?\d*[fFlL]?\b", NumberColorDark, NumberColor),
+                            new SyntaxHighlights(@"\b0[xX][0-9a-fA-F]+\b", NumberColorDark, NumberColor),
+                            new SyntaxHighlights(@"\b([a-zA-Z_]\w*)\s*(?=\()", FunctionColorDark, FunctionColor),
+                            new SyntaxHighlights(@"\b(if|else|for|while|do|switch|case|default|break|continue|goto|return)\b", ControlFlowColorDark, ControlFlowColor),
+                            new SyntaxHighlights(@"\b(int|char|float|double|void|struct|enum|asm|typedef|const|static|extern|auto|register|volatile|sizeof|union|long|short|signed|unsigned)\b", KeywordColorDark, KeywordColor),
+                            new SyntaxHighlights(@"""(?:[^""\\]|\\.)*""", StringColorDark, StringColor),
+                            new SyntaxHighlights(@"(?<=#\s*include\s*)[<""][^>""]+[>""]", StringColorDark, StringColor),
+                            new SyntaxHighlights(@"'(?:[^'\\]|\\.)*'", StringColorDark, StringColor),
+                            new SyntaxHighlights(@"\\[abfnrtv\\'\""]", EscapeSequenceColorDark, EscapeSequenceColor),
+                            new SyntaxHighlights(@"^\s*#\s*\w+", PreprocessorColorDark, PreprocessorColor),
+                            new SyntaxHighlights(@"//.*?(?=\r|\n|$)", CommentColorDark, CommentColor),
+                            new SyntaxHighlights(@"/\*[\s\S]*?\*/", CommentColorDark, CommentColor)
                         }
 
                     };
