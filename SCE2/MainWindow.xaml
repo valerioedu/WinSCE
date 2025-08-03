@@ -54,6 +54,14 @@
                                     <KeyboardAccelerator Key="S" Modifiers="Control"/>
                                 </MenuFlyoutItem.KeyboardAccelerators>
                             </MenuFlyoutItem>
+
+                            <MenuFlyoutItem Text="New Session" FontSize="11" Click="NewSession_Click"
+                                            KeyboardAcceleratorTextOverride="Ctrl+Shift+S">
+                                <MenuFlyoutItem.KeyboardAccelerators>
+                                    <KeyboardAccelerator Key="S" Modifiers="Shift, Control"/>
+                                </MenuFlyoutItem.KeyboardAccelerators>
+                            </MenuFlyoutItem>
+                            
                             <MenuFlyoutSeparator/>
                             <MenuFlyoutItem Text="Quit" FontSize="11" Click="Quit_Click"
                                             KeyboardAcceleratorTextOverride="Ctrl+Q">
@@ -142,7 +150,8 @@
                     <RowDefinition x:Name="TerminalRow" Height="0"/>
                 </Grid.RowDefinitions>
 
-                <ScrollViewer x:Name="TabScrollViewer" 
+                <ScrollViewer x:Name="TabScrollViewer"  
+                  Style="{StaticResource HoverScrollViewerStyle}"
                   Grid.Row="0"
                   HorizontalScrollBarVisibility="Auto" 
                   VerticalScrollBarVisibility="Disabled"

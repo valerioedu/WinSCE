@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.NetworkInformation;
+using System.Security.Claims;
 using System.Text.RegularExpressions;
 using TextControlBoxNS;
 using Windows.Foundation;
@@ -67,6 +68,9 @@ namespace SCE2
         private double gitPanelWidth = 380;
         private Point lastGitPointerPosition;
 
+        private List<TabInfo> openTabs = new List<TabInfo>();
+        private string activeTabId = null;
+
         public MainWindow()
         {
             this.InitializeComponent();
@@ -101,6 +105,15 @@ namespace SCE2
             CodeEditor.TextChanged += (e) =>
             {
                 hasUnsavedChanges = true;
+                if (activeTabId != null)
+                {
+                    var currentTab = openTabs.FirstOrDefault(t => t.TabId == activeTabId);
+                    if (currentTab != null)
+                    {
+                        currentTab.Text = CodeEditor.Text;
+                        SaveCurrentTabPosition();
+                    }
+                }
                 UpdateCursorPosition();
             };
 
@@ -143,7 +156,6 @@ namespace SCE2
             };
 
             SelectLanguage(currentLanguage);
-            CreateTab("test.c");
         }
 
         private void FileMenuShortcut_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
@@ -282,8 +294,6 @@ namespace SCE2
             }
         }
 
-
-
         private string GetCurrentLineIndentation(string lineText)
         {
             var indentation = "";
@@ -416,66 +426,147 @@ namespace SCE2
             catch { }
         }
 
-        private void LoadLastSession()
-        {
-            try
-            {
-                var localSettings = ApplicationData.Current.LocalSettings;
-
-                var lastContent = localSettings.Values["LastContent"] as string;
-                var lastFilePath = localSettings.Values["LastFilePath"] as string;
-                var lastLanguage = localSettings.Values["LastLanguage"] as string;
-
-                if (!string.IsNullOrEmpty(lastContent))
-                {
-                    if (lastContent.EndsWith("\r"))
-                    {
-                        lastContent = lastContent.TrimEnd('\r');
-                    }
-                    if (lastContent.EndsWith("\n"))
-                    {
-                        lastContent = lastContent.TrimEnd('\n');
-                    }
-                    if (lastContent.EndsWith("\r\n"))
-                    {
-                        lastContent = lastContent.TrimEnd('\r', '\n');
-                    }
-
-                    CodeEditor.SetText(lastContent);
-                }
-
-                if (!string.IsNullOrEmpty(lastFilePath))
-                {
-                    currentFilePath = lastFilePath;
-                }
-
-                if (!string.IsNullOrEmpty(lastLanguage))
-                {
-                    currentLanguage = lastLanguage;
-                }
-
-                StatusBarText.Text = "Session restored";
-                hasUnsavedChanges = false;
-            }
-            catch
-            {
-                currentLanguage = "c";
-            }
-        }
-
         private void SaveLastSession()
         {
             try
             {
                 var localSettings = ApplicationData.Current.LocalSettings;
 
-                string text = CodeEditor.Text;
+                if (activeTabId != null)
+                {
+                    SaveCurrentTabPosition();
 
-                localSettings.Values["LastContent"] = text;
+                    var currentTab = openTabs.FirstOrDefault(t => t.TabId == activeTabId);
+                    if (currentTab != null)
+                    {
+                        if (string.IsNullOrEmpty(currentTab.FilePath))
+                        {
+                            localSettings.Values[$"TabContent_{currentTab.TabId}"] = CodeEditor.Text;
+                        }
+                    }
+                }
+
+                var serializedTabs = new List<string>();
+                foreach (var tab in openTabs)
+                {
+                    serializedTabs.Add(SerializeTabInfo(tab));
+                }
+
+                localSettings.Values["OpenTabsCount"] = openTabs.Count;
+                for (int i = 0; i < openTabs.Count; i++)
+                {
+                    localSettings.Values[$"Tab_{i}"] = serializedTabs[i];
+                }
+
+                localSettings.Values["ActiveTabId"] = activeTabId;
+
+                localSettings.Values["LastContent"] = CodeEditor.Text;
                 localSettings.Values["LastFilePath"] = currentFilePath;
                 localSettings.Values["LastLanguage"] = currentLanguage;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error saving session: {ex.Message}");
+            }
+        }
+
+        private void LoadLastSession()
+        {
+            try
+            {
+                var localSettings = ApplicationData.Current.LocalSettings;
+
+                var lastLanguage = localSettings.Values["LastLanguage"] as string;
+                if (!string.IsNullOrEmpty(lastLanguage))
+                {
+                    currentLanguage = lastLanguage;
+                }
+
+                var tabCount = (int)(localSettings.Values["OpenTabsCount"] ?? 0);
+                var savedActiveTabId = localSettings.Values["ActiveTabId"] as string;
+
+                if (tabCount > 0)
+                {
+                    openTabs.Clear();
+                    TabContainer.Children.Clear();
+                    activeTabId = null;
+
+                    for (int i = 0; i < tabCount; i++)
+                    {
+                        var serializedTab = localSettings.Values[$"Tab_{i}"] as string;
+                        if (!string.IsNullOrEmpty(serializedTab))
+                        {
+                            var tabInfo = DeserializeTabInfo(serializedTab);
+                            if (tabInfo != null)
+                            {
+                                CreateTab(tabInfo.TabText, tabInfo.FilePath, tabInfo.TabId);
+
+                                var restoredTab = openTabs.FirstOrDefault(t => t.TabId == tabInfo.TabId);
+                                if (restoredTab != null)
+                                {
+                                    restoredTab.CursorLine = tabInfo.CursorLine;
+                                    restoredTab.VerticalOffset = tabInfo.VerticalOffset;
+
+                                    if (!string.IsNullOrEmpty(tabInfo.FilePath))
+                                    {
+                                        try
+                                        {
+                                            restoredTab.Text = File.ReadAllText(tabInfo.FilePath);
+                                            CodeEditor.Text = restoredTab.Text;
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            System.Diagnostics.Debug.WriteLine($"Error loading file {tabInfo.FilePath}: {ex.Message}");
+                                            restoredTab.Text = "";
+                                        }
+                                    }
+                                    else
+                                    {
+                                        var savedContent = localSettings.Values[$"TabContent_{tabInfo.TabId}"] as string;
+                                        restoredTab.Text = savedContent ?? "";
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(savedActiveTabId) && openTabs.Any(t => t.TabId == savedActiveTabId))
+                    {
+                        SwitchToTab(savedActiveTabId);
+                    }
+                    else if (openTabs.Count > 0)
+                    {
+                        SwitchToTab(openTabs[0].TabId);
+                    }
+                }
+                else
+                {
+                    var lastContent = localSettings.Values["LastContent"] as string;
+                    var lastFilePath = localSettings.Values["LastFilePath"] as string;
+
+                    if (!string.IsNullOrEmpty(lastContent))
+                    {
+                        CodeEditor.SetText(lastContent);
+                    }
+
+                    if (!string.IsNullOrEmpty(lastFilePath))
+                    {
+                        currentFilePath = lastFilePath;
+                    }
+                }
+
+                StatusBarText.Text = "Session restored";
+                hasUnsavedChanges = false;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading session: {ex.Message}");
+                currentLanguage = "c";
+                if (openTabs.Count == 0)
+                {
+                    CreateTab("Untitled", "");
+                }
+            }
         }
 
         private void ApplySettings()
@@ -523,10 +614,6 @@ namespace SCE2
             return ((short)CodeEditor.NumberOfSpacesForTab, autoIndentationEnabled, autoCompletionEnabled, autoBraceClosingEnabled, lineNumbersEnabled, wordWrapEnabled, autoSaveEnabled, restoreSessionEnabled, autoSaveInterval);
         }
 
-        private async void Quit_Click(object sender, RoutedEventArgs e)
-        {
-            Application.Current.Exit();
-        }
         private void Terminal_Click(object sender, RoutedEventArgs e)
         {
             ToggleTerminal();
@@ -662,101 +749,6 @@ namespace SCE2
         {
             isDraggingGitSplitter = false;
             GitSplitter.ReleasePointerCapture(e.Pointer);
-        }
-
-        private Button CreateTab(string tabText, string tabId = null)
-        {
-            if (string.IsNullOrEmpty(tabId))
-                tabId = Guid.NewGuid().ToString();
-
-            var tabButton = new Button
-            {
-                Name = $"test.c",
-                Tag = tabId,
-                Background = new SolidColorBrush(Colors.Transparent),
-                BorderThickness = new Thickness(1,0,1,1),
-                BorderBrush = new SolidColorBrush(Colors.Gray),
-                CornerRadius = new CornerRadius(0, 0, 8, 8),
-                Margin = new Thickness(0, 0, 2, 0),
-                Padding = new Thickness(0),
-                Height = 30,
-                MinWidth = 100,
-                MaxWidth = 200,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-
-            var contentPanel = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(8, 0, 4, 0)
-            };
-
-            var textBlock = new TextBlock
-            {
-                Text = tabText,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 6, 0),
-                FontSize = 12,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                MaxWidth = 140
-            };
-
-            var isDarkTheme = Application.Current.RequestedTheme == ApplicationTheme.Dark;
-            var oppositeColor = isDarkTheme ? Colors.White : Colors.Black;
-
-            var closeButton = new Button
-            {
-                Content = "×",
-                Width = 18,
-                Height = 18,
-                FontSize = 14,
-                FontWeight = FontWeights.Bold,
-                Background = new SolidColorBrush(Colors.Transparent),
-                Foreground = new SolidColorBrush(oppositeColor),
-                BorderThickness = new Thickness(0),
-                Padding = new Thickness(0),
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                CornerRadius = new CornerRadius(9),
-                Tag = tabId
-            };
-
-            closeButton.Click += (s, e) =>
-            {
-                DestroyTab(tabId);
-            };
-
-            contentPanel.Children.Add(textBlock);
-            contentPanel.Children.Add(closeButton);
-
-            tabButton.Content = contentPanel;
-
-            TabContainer.Children.Add(tabButton);
-
-            return tabButton;
-        }
-
-        private bool DestroyTab(string tabId)
-        {
-            try
-            {
-                var tabButton = TabContainer.Children.Cast<Button>()
-                    .FirstOrDefault(b => b.Tag.ToString() == tabId);
-
-                if (tabButton != null)
-                {
-                    TabContainer.Children.Remove(tabButton);
-                    return true;
-                }
-
-                return false;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error destroying tab: {ex.Message}");
-                return false;
-            }
         }
     }
 }

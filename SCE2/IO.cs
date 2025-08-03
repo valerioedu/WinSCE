@@ -29,45 +29,67 @@ namespace SCE2
                 var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
                 WinRT.Interop.InitializeWithWindow.Initialize(picker, hWnd);
 
-                var file = await picker.PickSingleFileAsync();
+                var files = await picker.PickMultipleFilesAsync();
 
-                if (file != null)
+                if (files != null)
                 {
-                    try
+                    foreach (var file in files)
                     {
-                        string text = await FileIO.ReadTextAsync(file);
-
-                        CodeEditor.LoadText(text);
-                        currentFilePath = file.Path;
-
-                        DetectLanguageFromFile(file.Name);
-
-                        StatusBarText.Text = $"Opened: {file.Name}";
-
-                        var dir = System.IO.Path.GetDirectoryName(currentFilePath);
-
                         try
                         {
-                            TerminalPanel.ExecuteCommand($"cd {dir}");
-                        }
-                        catch 
-                        {
-                            StatusBarText.Text = "Couldn't access the file directory";
-                        }
+                            string text = await FileIO.ReadTextAsync(file);
+                            var filePath = file.Path;
+                            var fileName = file.Name;
 
-                        UpdateGitContext();
-                    }
-                    catch (UnauthorizedAccessException)
-                    {
-                        StatusBarText.Text = "Access to the file was denied.";
-                    }
-                    catch (IOException ioEx)
-                    {
-                        StatusBarText.Text = $"File I/O error: {ioEx.Message}";
-                    }
-                    catch (Exception ex)
-                    {
-                        StatusBarText.Text = $"Unexpected error reading file: {ex.Message}";
+                            var existingTab = openTabs.FirstOrDefault(t => t.FilePath == filePath);
+                            if (existingTab != null)
+                            {
+                                SwitchToTab(existingTab.TabId, true);
+                                return;
+                            }
+
+                            if (activeTabId != null)
+                            {
+                                SaveCurrentTabPosition();
+                            }
+
+                            CreateTab(fileName, filePath);
+
+                            CodeEditor.LoadText(text);
+                            currentFilePath = filePath;
+
+                            DetectLanguageFromFile(fileName);
+
+                            StatusBarText.Text = $"Opened: {fileName}";
+
+                            var dir = System.IO.Path.GetDirectoryName(currentFilePath);
+
+                            try
+                            {
+                                TerminalPanel.ExecuteCommand($"cd {dir}");
+                            }
+                            catch
+                            {
+                                StatusBarText.Text = "Couldn't access the file directory";
+                            }
+
+                            UpdateGitContext();
+                            UpdateCursorPosition();
+
+                            hasUnsavedChanges = false;
+                        }
+                        catch (UnauthorizedAccessException)
+                        {
+                            StatusBarText.Text = "Access to the file was denied.";
+                        }
+                        catch (IOException ioEx)
+                        {
+                            StatusBarText.Text = $"File I/O error: {ioEx.Message}";
+                        }
+                        catch (Exception ex)
+                        {
+                            StatusBarText.Text = $"Unexpected error reading file: {ex.Message}";
+                        }
                     }
                 }
             }
@@ -85,6 +107,16 @@ namespace SCE2
                     await SaveAsFile();
                 else
                     await SaveCurrentFile();
+                var currentTab = openTabs.FirstOrDefault(t => t.TabId == activeTabId);
+                if (currentTab != null)
+                {
+                    currentTab.Saved = true;
+                    if (currentTab.TabText.EndsWith("*"))
+                    {
+                        currentTab.TabText = currentTab.TabText.TrimEnd('*');
+                        UpdateTabButtonText(currentTab.TabId, currentTab.TabText);
+                    }
+                }
 
                 UpdateGitContext();
             }
@@ -181,10 +213,21 @@ namespace SCE2
         // Event handlers
         private void New_Click(object sender, RoutedEventArgs e)
         {
-            CodeEditor.Text = GetTemplateForLanguage(currentLanguage);
-            currentFilePath = "";
+            if (!string.IsNullOrEmpty(currentFilePath))
+            {
+                CodeEditor.Text = GetTemplateForLanguage(currentLanguage);
+                currentFilePath = "";
 
-            StatusBarText.Text = "New file created";
+                StatusBarText.Text = "New file created";
+            }
+            else
+            {
+                CreateTab("Untitled");
+                CodeEditor.Text = GetTemplateForLanguage(currentLanguage);
+                currentFilePath = "";
+
+                StatusBarText.Text = "New file created";
+            }
         }
 
         private void DetectLanguageFromFile(string fileName)
@@ -248,6 +291,21 @@ namespace SCE2
                 "generic" => "Generic",
                 _ => "Unknown"
             };
+        }
+        private void NewSession_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (var tab in openTabs.ToList())
+            {
+                DestroyTab(tab.TabId);
+            }
+
+            CleanupTabContent();
+            CreateTab("Untitled");
+        }
+
+        private async void Quit_Click(object sender, RoutedEventArgs e)
+        {
+            Application.Current.Exit();
         }
     }
 }

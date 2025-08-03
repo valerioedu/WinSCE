@@ -55,11 +55,11 @@ namespace SCE2
                             new SyntaxHighlights(@"\b0[xX][0-9a-fA-F]+\b", NumberColorDark, NumberColor),
                             new SyntaxHighlights(@"\b([a-zA-Z_]\w*)\s*(?=\()", FunctionColorDark, FunctionColor),
                             new SyntaxHighlights(@"\b(if|else|for|while|do|switch|case|default|break|continue|goto|return)\b", ControlFlowColorDark, ControlFlowColor),
-                            new SyntaxHighlights(@"\b(int|char|float|double|void|struct|enum|asm|typedef|const|static|extern|auto|register|volatile|sizeof|union|long|short|signed|unsigned)\b", KeywordColorDark, KeywordColor),
+                            new SyntaxHighlights(@"\b(int|char|float|double|void|struct|enum|asm|true|false|NULL|typedef|const|static|extern|auto|register|volatile|sizeof|union|long|short|signed|unsigned)\b", KeywordColorDark, KeywordColor),
                             new SyntaxHighlights(@"""(?:[^""\\]|\\.)*""", StringColorDark, StringColor),
                             new SyntaxHighlights(@"(?<=#\s*include\s*)[<""][^>""]+[>""]", StringColorDark, StringColor),
                             new SyntaxHighlights(@"'(?:[^'\\]|\\.)*'", StringColorDark, StringColor),
-                            new SyntaxHighlights(@"\\[abfnrtv\\'\""]", EscapeSequenceColorDark, EscapeSequenceColor),
+                            new SyntaxHighlights(@"\\[abfnrtv0\\'\""]", EscapeSequenceColorDark, EscapeSequenceColor),
                             new SyntaxHighlights(@"^\s*#\s*\w+", PreprocessorColorDark, PreprocessorColor),
                             new SyntaxHighlights(@"//.*?(?=\r|\n|$)", CommentColorDark, CommentColor),
                             new SyntaxHighlights(@"/\*[\s\S]*?\*/", CommentColorDark, CommentColor)
