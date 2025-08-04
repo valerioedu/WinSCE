@@ -71,6 +71,8 @@ namespace SCE2
         private List<TabInfo> openTabs = new List<TabInfo>();
         private string activeTabId = null;
 
+        public TextBlock GitBarTextPublic => GitBarText;
+
         public MainWindow()
         {
             this.InitializeComponent();
@@ -104,7 +106,18 @@ namespace SCE2
 
             CodeEditor.TextChanged += (e) =>
             {
-                hasUnsavedChanges = true;
+                try
+                {
+                    var currentTab = openTabs.FirstOrDefault(t => t.TabId == activeTabId);
+                    currentTab.Saved = false;
+                    if (!currentTab.TabText.EndsWith("*"))
+                    {
+                        UpdateTabButtonText(currentTab.TabId, currentTab.TabText += "*");
+                        currentTab.TabText += "*";
+                    }
+                }
+                catch { }
+
                 if (activeTabId != null)
                 {
                     var currentTab = openTabs.FirstOrDefault(t => t.TabId == activeTabId);
@@ -350,14 +363,21 @@ namespace SCE2
                 var fileName = string.IsNullOrEmpty(currentFilePath) ? "Untitled" : System.IO.Path.GetFileName(currentFilePath);
 
                 if (displayChar > 27 && displayChar < 128)
-                    StatusBarText.Text = $"Ln {currentLine + 1}, Col {currentChar + 1}, Key: {displayChar} | {fileName}";
+                {
+                    StatusBarText.Text = $"Ln {currentLine + 1}, Col {currentChar + 1}, Key: {displayChar}";
+                    GitBarText.Text = GitBarText.Text;
+                }
                 else
-                    StatusBarText.Text = $"Ln {currentLine + 1}, Col {currentChar + 1} | {fileName}";
+                {
+                    StatusBarText.Text = $"Ln {currentLine + 1}, Col {currentChar + 1}";
+                    FileNameBarText.Text = GitBarText.Text;
+                }
             }
             catch (Exception ex)
             {
                 var fileName = string.IsNullOrEmpty(currentFilePath) ? "Untitled" : System.IO.Path.GetFileName(currentFilePath);
-                StatusBarText.Text = $"Ln 1, Col 1 | {fileName}";
+                StatusBarText.Text = $"Ln 1, Col 1";
+                FileNameBarText.Text = GitBarText.Text;
                 System.Diagnostics.Debug.WriteLine($"UpdateCursorPosition error: {ex.Message}");
             }
         }
@@ -505,7 +525,6 @@ namespace SCE2
                                 if (restoredTab != null)
                                 {
                                     restoredTab.CursorLine = tabInfo.CursorLine;
-                                    restoredTab.VerticalOffset = tabInfo.VerticalOffset;
 
                                     if (!string.IsNullOrEmpty(tabInfo.FilePath))
                                     {
@@ -749,6 +768,25 @@ namespace SCE2
         {
             isDraggingGitSplitter = false;
             GitSplitter.ReleasePointerCapture(e.Pointer);
+        }
+
+        private void LFButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (LFButton.Content == "LF")
+            {
+                LFButton.Content = "CRLF";
+                CodeEditor.LineEnding = LineEnding.CRLF;
+            }
+            else if (LFButton.Content == "CRLF")
+            {
+                LFButton.Content = "CR";
+                CodeEditor.LineEnding = LineEnding.CR;
+            }
+            else
+            {
+                LFButton.Content = "LF";
+                CodeEditor.LineEnding = LineEnding.LF;
+            }
         }
     }
 }

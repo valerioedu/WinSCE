@@ -28,17 +28,15 @@ namespace SCE2
         public string FilePath { get; set; }
         public int CursorLine { get; set; }
         public string TabText { get; set; }
-        public ScrollBarPosition VerticalOffset { get; set; }
         public string Text { get; set; }
         public bool Saved { get; set; }
 
-        public TabInfo(string tabId, string filePath, int cursorLine, string tabText, ScrollBarPosition verticalOffset = null)
+        public TabInfo(string tabId, string filePath, int cursorLine, string tabText)
         {
             TabId = tabId;
             FilePath = filePath;
             CursorLine = cursorLine;
             TabText = tabText;
-            VerticalOffset = verticalOffset;
         }
     }
 
@@ -135,7 +133,7 @@ namespace SCE2
 
             TabContainer.Children.Add(tabButton);
 
-            var tabInfo = new TabInfo(tabId, path ?? "", 0, tabText, new ScrollBarPosition(0, 0));
+            var tabInfo = new TabInfo(tabId, path ?? "", 0, tabText);
             openTabs.Add(tabInfo);
 
             if (activeTabId == null)
@@ -228,12 +226,10 @@ namespace SCE2
 
                 SetActiveTab(tabId);
 
-                UpdateCursorPosition();
+                string currentFileName = Path.GetFileName(tabInfo.FilePath);
+                FileNameBarText.Text = currentFilePath;
 
-                if (tabInfo.VerticalOffset != null)
-                {
-                    CodeEditor.ScrollBarPosition = tabInfo.VerticalOffset;
-                }
+                UpdateCursorPosition();
             }
             catch (Exception ex)
             {
@@ -270,13 +266,12 @@ namespace SCE2
             if (tabInfo != null)
             {
                 tabInfo.CursorLine = CodeEditor.CurrentLineIndex;
-                tabInfo.VerticalOffset = CodeEditor.ScrollBarPosition;
             }
         }
 
         private string SerializeTabInfo(TabInfo tabInfo)
         {
-            return $"{tabInfo.TabId}|{tabInfo.FilePath}|{tabInfo.CursorLine}|{tabInfo.TabText}|{tabInfo.VerticalOffset}";
+            return $"{tabInfo.TabId}|{tabInfo.FilePath}|{tabInfo.CursorLine}|{tabInfo.TabText}";
         }
 
         private TabInfo DeserializeTabInfo(string serializedTab)
@@ -284,15 +279,11 @@ namespace SCE2
             var parts = serializedTab.Split('|');
             if (parts.Length >= 4)
             {
-                var verticalOffset = parts.Length > 4 && double.TryParse(parts[4], out double vOffset) ? vOffset : 0;
-                var horizontalOffset = parts.Length > 5 && double.TryParse(parts[5], out double hOffset) ? hOffset : 0;
-
                 return new TabInfo(
                     parts[0],
                     parts[1],
                     int.TryParse(parts[2], out int cursorLine) ? cursorLine : 0,
-                    parts[3],
-                    new ScrollBarPosition(verticalOffset, horizontalOffset)
+                    parts[3]
                 );
             }
             return null;

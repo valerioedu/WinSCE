@@ -14,6 +14,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="32"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="1"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -23,7 +24,7 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Stretch">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Stretch" >
                 <Button Content="File" Padding="8,0" Margin="2,0,0,0" FontSize="13"
                         Background="Transparent" BorderThickness="0" 
                         VerticalAlignment="Stretch" VerticalContentAlignment="Center"
@@ -35,28 +36,36 @@
                     <Button.Flyout>
                         <MenuFlyout>
                             <MenuFlyoutItem Text="New" FontSize="11" Click="New_Click"
-                                            KeyboardAcceleratorTextOverride="Ctrl+N">
+                                            KeyboardAcceleratorTextOverride="Ctrl+N"
+                                            Background="{StaticResource SystemChromeMediumColor}"
+                                            CornerRadius="0">
                                 <MenuFlyoutItem.KeyboardAccelerators>
                                     <KeyboardAccelerator Key="N" Modifiers="Control"/>
                                 </MenuFlyoutItem.KeyboardAccelerators>
                             </MenuFlyoutItem>
 
                             <MenuFlyoutItem Text="Open" FontSize="11" Click="Open_Click"
-                                            KeyboardAcceleratorTextOverride="Ctrl+O">
+                                            KeyboardAcceleratorTextOverride="Ctrl+O"
+                                            Background="{StaticResource SystemChromeMediumColor}"
+                                            CornerRadius="0">
                                 <MenuFlyoutItem.KeyboardAccelerators>
                                     <KeyboardAccelerator Key="O" Modifiers="Control"/>
                                 </MenuFlyoutItem.KeyboardAccelerators>
                             </MenuFlyoutItem>
 
                             <MenuFlyoutItem Text="Save" FontSize="11" Click="Save_Click"
-                                            KeyboardAcceleratorTextOverride="Ctrl+S">
+                                            KeyboardAcceleratorTextOverride="Ctrl+S"
+                                            Background="{StaticResource SystemChromeMediumColor}"
+                                            CornerRadius="0">
                                 <MenuFlyoutItem.KeyboardAccelerators>
                                     <KeyboardAccelerator Key="S" Modifiers="Control"/>
                                 </MenuFlyoutItem.KeyboardAccelerators>
                             </MenuFlyoutItem>
 
                             <MenuFlyoutItem Text="New Session" FontSize="11" Click="NewSession_Click"
-                                            KeyboardAcceleratorTextOverride="Ctrl+Shift+S">
+                                            KeyboardAcceleratorTextOverride="Ctrl+Shift+S"
+                                            Background="{StaticResource SystemChromeMediumColor}"
+                                            CornerRadius="0">
                                 <MenuFlyoutItem.KeyboardAccelerators>
                                     <KeyboardAccelerator Key="S" Modifiers="Shift, Control"/>
                                 </MenuFlyoutItem.KeyboardAccelerators>
@@ -64,7 +73,9 @@
                             
                             <MenuFlyoutSeparator/>
                             <MenuFlyoutItem Text="Quit" FontSize="11" Click="Quit_Click"
-                                            KeyboardAcceleratorTextOverride="Ctrl+Q">
+                                            KeyboardAcceleratorTextOverride="Ctrl+Q"
+                                            Background="{StaticResource SystemChromeMediumColor}"
+                                            >
                                 <MenuFlyoutItem.KeyboardAccelerators>
                                     <KeyboardAccelerator Key="Q" Modifiers="Control"/>
                                 </MenuFlyoutItem.KeyboardAccelerators>
@@ -170,12 +181,13 @@
 
                 </ScrollViewer>
 
-                <Grid Grid.Row="1" BorderThickness="0,0,0,1" BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"/>
+                <Grid Grid.Row="1" BorderThickness="0,0,0,1" BorderBrush="{ThemeResource SystemChromeLowColor}"/>
                 <textcontrolbox:TextControlBox x:Name="CodeEditor" 
                                    Grid.Row="1"
                                    FontFamily="Consolas" 
                                    FontSize="14" 
-                                   PreviewKeyDown="CodeEditor_PreviewKeyDown" />
+                                   PreviewKeyDown="CodeEditor_PreviewKeyDown"
+                                              />
 
                 <Border x:Name="TerminalSplitter" 
             Grid.Row="2" 
@@ -194,11 +206,26 @@
             </Grid>
         </Grid>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal">
-            <StackPanel.Background>
-                <SolidColorBrush Color="{ThemeResource SystemChromeLowColor}"/>
-            </StackPanel.Background>
-            <TextBlock x:Name="StatusBarText" Text="Ln 1, Col 1" Margin="10,2,0,2"/>
-        </StackPanel>
+        <Border Grid.Row="2"
+        Height="2"
+        Background="{ThemeResource SystemControlForegroundBaseLowBrush}"
+        HorizontalAlignment="Stretch"
+        VerticalAlignment="Center"
+        ManipulationMode="TranslateY"/>
+
+
+        <Grid Grid.Row="3" Background="{ThemeResource SystemChromeLowColor}" Height="26">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="StatusBarText" Text="Ln 1, Col 1" Margin="10,2,0,2" Grid.Column="0"/>
+            <TextBlock x:Name="GitBarText" Padding="5" VerticalAlignment="Center" Grid.Column="2" HorizontalAlignment="Center" />
+            <TextBlock x:Name="FileNameBarText" Text="Untitled" HorizontalAlignment="Right" VerticalAlignment="Center" Grid.Column="3" Padding="10"/>
+            <Button x:Name="LFButton" Content="CRLF" HorizontalAlignment="Right" CornerRadius="0" Grid.Column="4" Background="Transparent" FontSize="11" Click="LFButton_Click" BorderThickness="1,0,1,1" VerticalContentAlignment="Top"/>
+        </Grid>
     </Grid>
 </Window>

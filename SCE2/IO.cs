@@ -103,15 +103,14 @@ namespace SCE2
         {
             try
             {
-                if (string.IsNullOrEmpty(currentFilePath))
-                    await SaveAsFile();
-                else
-                    await SaveCurrentFile();
+                if (string.IsNullOrEmpty(currentFilePath)) await SaveAsFile();
+                else await SaveCurrentFile();
+
                 var currentTab = openTabs.FirstOrDefault(t => t.TabId == activeTabId);
                 if (currentTab != null)
                 {
                     currentTab.Saved = true;
-                    if (currentTab.TabText.EndsWith("*"))
+                    while (currentTab.TabText.EndsWith("*"))
                     {
                         currentTab.TabText = currentTab.TabText.TrimEnd('*');
                         UpdateTabButtonText(currentTab.TabId, currentTab.TabText);

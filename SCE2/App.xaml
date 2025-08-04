@@ -12,46 +12,50 @@
             </ResourceDictionary.MergedDictionaries>
             <!-- Other app resources here -->
             <Style TargetType="ScrollViewer" x:Key="HoverScrollViewerStyle">
-    <Setter Property="Template">
-        <Setter.Value>
-            <ControlTemplate TargetType="ScrollViewer">
-                <Grid x:Name="RootGrid">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <!-- Top separator (border) -->
-                    <Border Grid.Row="0"
-                            Height="1"
-                            Background="{TemplateBinding BorderBrush}" />
-                    <ScrollContentPresenter x:Name="ScrollContentPresenter"
-                                           Grid.Row="1"
-                                           Content="{TemplateBinding Content}"
-                                           ContentTemplate="{TemplateBinding ContentTemplate}"
-                                           Margin="{TemplateBinding Padding}"/>
-                    <ScrollBar x:Name="HorizontalScrollBar"
-                               Orientation="Horizontal"
-                               Grid.Row="2"
-                               Visibility="Collapsed"
-                               Maximum="{TemplateBinding ScrollableWidth}"
-                               Value="{TemplateBinding HorizontalOffset}"
-                               ViewportSize="{TemplateBinding ViewportWidth}"/>
-                    <VisualStateManager.VisualStateGroups>
-                        <VisualStateGroup x:Name="CommonStates">
-                            <VisualState x:Name="Normal"/>
-                            <VisualState x:Name="PointerOver">
-                                <VisualState.Setters>
-                                    <Setter Target="HorizontalScrollBar.Visibility" Value="Visible"/>
-                                </VisualState.Setters>
-                            </VisualState>
-                        </VisualStateGroup>
-                    </VisualStateManager.VisualStateGroups>
-                </Grid>
-            </ControlTemplate>
-        </Setter.Value>
-    </Setter>
-</Style>
-        </ResourceDictionary>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollViewer">
+                            <Grid x:Name="RootGrid">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <!-- Top separator (border) -->
+                                <Border Grid.Row="0"
+                                Height="1"
+                                Background="{TemplateBinding BorderBrush}" />
+                                <ScrollContentPresenter x:Name="ScrollContentPresenter"
+                                               Grid.Row="1"
+                                               Content="{TemplateBinding Content}"
+                                               ContentTemplate="{TemplateBinding ContentTemplate}"
+                                               Margin="{TemplateBinding Padding}"/>
+                                <ScrollBar x:Name="HorizontalScrollBar"
+                                   Orientation="Horizontal"
+                                   Grid.Row="2"
+                                   Visibility="Collapsed"
+                                   Maximum="{TemplateBinding ScrollableWidth}"
+                                   Value="{TemplateBinding HorizontalOffset}"
+                                   ViewportSize="{TemplateBinding ViewportWidth}"/>
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal"/>
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="HorizontalScrollBar.Visibility" Value="Visible"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style TargetType="MenuFlyoutPresenter">
+                <Setter Property="Background" Value="{StaticResource SystemChromeMediumColor}" />
+                <Setter Property="CornerRadius" Value="0"/>
+            </Style>
+        </ResourceDictionary>   
     </Application.Resources>
 </Application>

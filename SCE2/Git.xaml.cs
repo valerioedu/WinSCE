@@ -28,6 +28,7 @@ namespace SCE2
         public ObservableCollection<GitCommit> Commits { get; set; }
 
         private string currentDirectory = "";
+        private MainWindow mainWindow;
 
         public GitControl()
         {
@@ -127,9 +128,20 @@ namespace SCE2
                     }
 
                     var repoName = Path.GetFileName(gitRoot);
-                    RepositoryPath.Text = $"Repository: {repoName}";
                     await RefreshGitInfo();
 
+                    var branchOutput = await ExecuteGitCommand("branch --show-current");
+                    var branchName = !string.IsNullOrEmpty(branchOutput) ? branchOutput.Trim() : "HEAD";
+
+                    var userOutput = await ExecuteGitCommand("config user.name");
+                    var userName = !string.IsNullOrEmpty(userOutput) ? userOutput.Trim() : "unknown";
+
+                    if (mainWindow != null && mainWindow.GitBarTextPublic != null)
+                    {
+                        mainWindow.GitBarTextPublic.Text = $"{repoName}:{branchName}@{userName}";
+                    }
+
+                    RepositoryPath.Text = $"Repository: {repoName}";
                     await RefreshChanges();
                     await RefreshBranches();
                     await RefreshCommits();
@@ -600,6 +612,11 @@ namespace SCE2
             {
                 RepositoryStatus.Text = $"Error refreshing commits: {ex.Message}";
             }
+        }
+
+        public void SetMainWindow(MainWindow window)
+        {
+            mainWindow = window;
         }
     }
 
