@@ -20,6 +20,8 @@ namespace SCE2
         readonly string PreprocessorColor = "#9B9B9B";
         readonly string FunctionColor = "#DCDCAA";
         readonly string EscapeSequenceColor = "#FFCE54";
+        readonly string ClassColor = "#4EC9B0";
+        readonly string VariableColor = "#9CDCFE";
 
         readonly string KeywordColorDark = "#1F5F99";
         readonly string ControlFlowColorDark = "#8B4A9C";
@@ -55,12 +57,12 @@ namespace SCE2
                             new SyntaxHighlights(@"\b0[xX][0-9a-fA-F]+\b", NumberColorDark, NumberColor),
                             new SyntaxHighlights(@"\b([a-zA-Z_]\w*)\s*(?=\()", FunctionColorDark, FunctionColor),
                             new SyntaxHighlights(@"\b(if|else|for|while|do|switch|case|default|break|continue|goto|return)\b", ControlFlowColorDark, ControlFlowColor),
-                            new SyntaxHighlights(@"\b(int|char|float|double|void|struct|enum|asm|true|false|NULL|typedef|const|static|extern|auto|register|volatile|sizeof|union|long|short|signed|unsigned)\b", KeywordColorDark, KeywordColor),
+                            new SyntaxHighlights(@"\b(int|char|bool|float|double|void|struct|enum|asm|true|false|NULL|typedef|const|static|extern|auto|register|volatile|sizeof|union|long|short|signed|unsigned)\b", KeywordColorDark, KeywordColor),
                             new SyntaxHighlights(@"""(?:[^""\\]|\\.)*""", StringColorDark, StringColor),
                             new SyntaxHighlights(@"(?<=#\s*include\s*)[<""][^>""]+[>""]", StringColorDark, StringColor),
                             new SyntaxHighlights(@"'(?:[^'\\]|\\.)*'", StringColorDark, StringColor),
                             new SyntaxHighlights(@"\\[abfnrtv0\\'\""]", EscapeSequenceColorDark, EscapeSequenceColor),
-                            new SyntaxHighlights(@"^\s*#\s*\w+", PreprocessorColorDark, PreprocessorColor),
+                            new SyntaxHighlights(@"(?:^|\n)\s*#\s*(include|define|undef|ifdef|ifndef|if|elif|else|endif|pragma|error|warning)\b", PreprocessorColorDark, PreprocessorColor),
                             new SyntaxHighlights(@"//.*?(?=\r|\n|$)", CommentColorDark, CommentColor),
                             new SyntaxHighlights(@"/\*[\s\S]*?\*/", CommentColorDark, CommentColor)
                         }
@@ -116,8 +118,15 @@ namespace SCE2
                             new SyntaxHighlights(@"\b\d+\.?\d*[fFdDmM]?\b", NumberColor, NumberColor),
                             new SyntaxHighlights(@"\b0[xX][0-9a-fA-F]+\b", NumberColor, NumberColor),
                             new SyntaxHighlights(@"\b([a-zA-Z_]\w*)\s*(?=\()", FunctionColor, FunctionColor),
-                            new SyntaxHighlights(@"\b(if|else|for|foreach|while|do|switch|case|default|break|continue|goto|return|try|catch|throw|finally|true|false|null)\b", ControlFlowColor, ControlFlowColor),
-                            new SyntaxHighlights(@"\b(int|char|float|double|decimal|string|bool|void|var|class|struct|enum|interface|namespace|using|public|private|protected|internal|static|abstract|virtual|override|new|this|base|typeof|sizeof)\b", KeywordColor, KeywordColor),
+                            new SyntaxHighlights(@"(?<=\b(?:var|int|string|bool|double|float|decimal|char|object)\s+)([a-z][a-zA-Z_]\w*)", VariableColor, VariableColor),
+                            new SyntaxHighlights(@"(?<=\(\s*(?:[a-zA-Z_]\w*\s+)?)([a-z][a-zA-Z_]\w*)(?=\s*[,\)])", VariableColor, VariableColor),
+                            new SyntaxHighlights(@"\b([a-z][a-zA-Z_]\w*)(?=\.[a-zA-Z_]\w*\s*\()", VariableColor, VariableColor),
+                            new SyntaxHighlights(@"(?<=\bnew\s+)([a-zA-Z_]\w*)(?=\s*[\<\[\(\{])", ClassColor, ClassColor),
+                            new SyntaxHighlights(@"\b([a-zA-Z_]\w*)(?=\.[a-zA-Z_]\w*\s*\()", ClassColor, ClassColor),
+                            new SyntaxHighlights(@"(?<=\b[a-zA-Z_][\w\.]*\.)([a-zA-Z_]\w*)(?=\.[a-zA-Z_]\w*\s*\()", ClassColor, ClassColor),
+                            new SyntaxHighlights(@"(?<=<\s*)([a-zA-Z_]\w*)(?=\s*[,>])", ClassColor, ClassColor),
+                            new SyntaxHighlights(@"\b(if|else|for|foreach|while|do|switch|case|default|break|continue|goto|return|try|catch|throw|finally|await)\b", ControlFlowColor, ControlFlowColor),
+                            new SyntaxHighlights(@"\b(int|char|float|double|decimal|string|bool|void|var|class|struct|enum|interface|namespace|using|public|private|protected|object|readonly|get|set|internal|static|abstract|virtual|override|new|this|base|typeof|sizeof|true|false|null|async)\b", KeywordColor, KeywordColor),
                             new SyntaxHighlights(@"""(?:[^""\\]|\\.)*""", StringColor, StringColor),
                             new SyntaxHighlights(@"@""(?:[^""]|"""")*""", StringColor, StringColor),
                             new SyntaxHighlights(@"\\[abfnrtv\\'\""]", EscapeSequenceColor, EscapeSequenceColor),

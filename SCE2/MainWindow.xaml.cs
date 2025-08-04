@@ -113,7 +113,6 @@ namespace SCE2
                     if (!currentTab.TabText.EndsWith("*"))
                     {
                         UpdateTabButtonText(currentTab.TabId, currentTab.TabText += "*");
-                        currentTab.TabText += "*";
                     }
                 }
                 catch { }

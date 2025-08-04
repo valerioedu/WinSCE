@@ -52,10 +52,18 @@
                     </Setter.Value>
                 </Setter>
             </Style>
+            
             <Style TargetType="MenuFlyoutPresenter">
                 <Setter Property="Background" Value="{StaticResource SystemChromeMediumColor}" />
                 <Setter Property="CornerRadius" Value="0"/>
             </Style>
+
+            <Style TargetType="ScrollBar">
+                <Setter Property="Width" Value="15"/>
+                <Setter Property="Visibility" Value="Visible"/>
+            </Style>
+
+            <SolidColorBrush x:Key="ChromeHighColor" Color="{ThemeResource SystemChromeHighColor}" />
         </ResourceDictionary>   
     </Application.Resources>
 </Application>

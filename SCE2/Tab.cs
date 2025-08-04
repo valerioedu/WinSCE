@@ -58,7 +58,7 @@ namespace SCE2
                 BorderThickness = new Thickness(1, 1, 1, 1),
                 BorderBrush = new SolidColorBrush(Colors.Gray),
                 Margin = new Thickness(2),
-                Padding = new Thickness(0),
+                Padding = new Thickness(0,1,0,1),
                 Height = 26,
                 MinWidth = 100,
                 MaxWidth = 200,
@@ -230,6 +230,10 @@ namespace SCE2
                 FileNameBarText.Text = currentFilePath;
 
                 UpdateCursorPosition();
+                if (gitPanelWidth != 0)
+                {
+                    UpdateGitContext();
+                }
             }
             catch (Exception ex)
             {
