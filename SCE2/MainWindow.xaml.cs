@@ -191,7 +191,8 @@ namespace SCE2
                         Content = "Unsaved files detected.\nAre you sure you want to close the application? All progress will be lost.",
                         PrimaryButtonText = "Yes",
                         CloseButtonText = "No",
-                        XamlRoot = this.Content.XamlRoot
+                        XamlRoot = this.Content.XamlRoot,
+                        CornerRadius = new CornerRadius(0)
                     };
 
                     var result = await dialog.ShowAsync();
