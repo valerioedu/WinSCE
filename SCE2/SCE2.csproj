@@ -13,7 +13,24 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="FolderExplorerControl.xaml" />
     <None Remove="Git.xaml" />
+    <None Remove="Icons\bash-original.png" />
+    <None Remove="Icons\c-original.png" />
+    <None Remove="Icons\cplusplus-original.png" />
+    <None Remove="Icons\csharp-original.png" />
+    <None Remove="Icons\css3-original.png" />
+    <None Remove="Icons\git-original.png" />
+    <None Remove="Icons\go-original-wordmark.png" />
+    <None Remove="Icons\html5-original.png" />
+    <None Remove="Icons\java-original.png" />
+    <None Remove="Icons\javascript-original.png" />
+    <None Remove="Icons\mysql-original.png" />
+    <None Remove="Icons\python-original.png" />
+    <None Remove="Icons\Rust.png" />
+    <None Remove="Icons\sqldeveloper-original.png" />
+    <None Remove="Icons\sqlite-original.png" />
+    <None Remove="Icons\typescript-original.png" />
     <None Remove="SettingsWindow.xaml" />
     <None Remove="TerminalControl.xaml" />
   </ItemGroup>
@@ -26,6 +43,22 @@
     <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+    <Content Include="Icons\bash-original.png" />
+    <Content Include="Icons\c-original.png" />
+    <Content Include="Icons\cplusplus-original.png" />
+    <Content Include="Icons\csharp-original.png" />
+    <Content Include="Icons\css3-original.png" />
+    <Content Include="Icons\git-original.png" />
+    <Content Include="Icons\go-original-wordmark.png" />
+    <Content Include="Icons\html5-original.png" />
+    <Content Include="Icons\java-original.png" />
+    <Content Include="Icons\javascript-original.png" />
+    <Content Include="Icons\mysql-original.png" />
+    <Content Include="Icons\python-original.png" />
+    <Content Include="Icons\Rust.png" />
+    <Content Include="Icons\sqldeveloper-original.png" />
+    <Content Include="Icons\sqlite-original.png" />
+    <Content Include="Icons\typescript-original.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -44,6 +77,11 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4188" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250606001" />
     <PackageReference Include="TextControlBox.WinUI.JuliusKirsch" Version="1.1.5" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="FolderExplorerControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Page Update="Git.xaml">

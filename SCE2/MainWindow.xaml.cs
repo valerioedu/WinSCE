@@ -13,6 +13,7 @@ using System.Linq;
 using System.Net.NetworkInformation;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using TextControlBoxNS;
 using Windows.Foundation;
 using Windows.Storage;
@@ -26,10 +27,6 @@ namespace SCE2
     {
         private string currentFilePath = "";
         private string currentLanguage = "c";
-        private bool isApplyingSyntaxHighlighting = false;
-        private DispatcherTimer syntaxHighlightingTimer;
-        private string lastHighlightedText = "";
-        private readonly int maxHighlightLength = 1000000;
 
         private bool autoIndentationEnabled = true;
         private bool autoCompletionEnabled = true;
@@ -73,6 +70,14 @@ namespace SCE2
 
         public TextBlock GitBarTextPublic => GitBarText;
 
+        private bool isExplorerPanelVisible = false;
+        private bool isDraggingExplorerSplitter = false;
+        private double explorerPanelWidth = 300;
+        private Point lastExplorerPointerPosition;
+
+        public static string currentFolderPath = string.Empty;
+        private string sessionTempFolder = Path.Combine(Path.GetTempPath(), "SCE2_Sessions");
+
         public MainWindow()
         {
             this.InitializeComponent();
@@ -82,8 +87,10 @@ namespace SCE2
                     WinRT.Interop.WindowNative.GetWindowHandle(this)
                 )
             );
+
             appWindow.TitleBar.ExtendsContentIntoTitleBar = true;
             appWindow.TitleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+            appWindow.Closing += AppWindow_Closing;
 
             CursorSize cursorSize = CodeEditor.CursorSize;
             CodeEditor.Focus(FocusState.Keyboard);
@@ -166,8 +173,55 @@ namespace SCE2
                     settingsWindow.Close();
                 }
             };
+        }
 
-            SelectLanguage(currentLanguage);
+        private async void AppWindow_Closing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
+        {
+            bool hasUnsavedChanges = openTabs.Any(tab => tab.Saved == false);
+
+            if (hasUnsavedChanges)
+            {
+                args.Cancel = true;
+
+                try
+                {
+                    var dialog = new ContentDialog
+                    {
+                        Title = "Confirm Exit",
+                        Content = "Unsaved files detected.\nAre you sure you want to close the application? All progress will be lost.",
+                        PrimaryButtonText = "Yes",
+                        CloseButtonText = "No",
+                        XamlRoot = this.Content.XamlRoot
+                    };
+
+                    var result = await dialog.ShowAsync();
+
+                    if (result == ContentDialogResult.Primary)
+                    {
+                        if (restoreSessionEnabled)
+                        {
+                            SaveLastSession();
+                        }
+
+                        if (autoSaveTimer != null)
+                        {
+                            autoSaveTimer.Stop();
+                        }
+
+                        if (settingsWindow != null)
+                        {
+                            settingsWindow.Close();
+                        }
+
+                        Application.Current.Exit();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error showing close dialog: {ex.Message}");
+                    Application.Current.Exit();
+                }
+            }
         }
 
         private void FileMenuShortcut_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
@@ -481,7 +535,7 @@ namespace SCE2
 
                 localSettings.Values["LastContent"] = CodeEditor.Text;
                 localSettings.Values["LastFilePath"] = currentFilePath;
-                localSettings.Values["LastLanguage"] = currentLanguage;
+                localSettings.Values["LastFolder"] = currentFolderPath;
             }
             catch (Exception ex)
             {
@@ -494,12 +548,6 @@ namespace SCE2
             try
             {
                 var localSettings = ApplicationData.Current.LocalSettings;
-
-                var lastLanguage = localSettings.Values["LastLanguage"] as string;
-                if (!string.IsNullOrEmpty(lastLanguage))
-                {
-                    currentLanguage = lastLanguage;
-                }
 
                 var tabCount = (int)(localSettings.Values["OpenTabsCount"] ?? 0);
                 var savedActiveTabId = localSettings.Values["ActiveTabId"] as string;
@@ -518,7 +566,7 @@ namespace SCE2
                             var tabInfo = DeserializeTabInfo(serializedTab);
                             if (tabInfo != null)
                             {
-                                CreateTab(tabInfo.TabText, tabInfo.FilePath, tabInfo.TabId);
+                                CreateTab(tabInfo.TabText, tabInfo.FilePath, false, tabInfo.TabId);
 
                                 var restoredTab = openTabs.FirstOrDefault(t => t.TabId == tabInfo.TabId);
                                 if (restoredTab != null)
@@ -562,15 +610,23 @@ namespace SCE2
                     var lastContent = localSettings.Values["LastContent"] as string;
                     var lastFilePath = localSettings.Values["LastFilePath"] as string;
 
-                    if (!string.IsNullOrEmpty(lastContent))
-                    {
-                        CodeEditor.SetText(lastContent);
-                    }
 
                     if (!string.IsNullOrEmpty(lastFilePath))
                     {
                         currentFilePath = lastFilePath;
                     }
+                }
+
+                var lastFolder = localSettings.Values["LastFolder"] as string;
+                if (!string.IsNullOrEmpty(lastFolder))
+                {
+                    currentFolderPath = lastFolder;
+                    if (!isExplorerPanelVisible)
+                    {
+                        ToggleExplorerPanel();
+                    }
+
+                    FolderExplorerPanel.SetFolderPath(currentFolderPath);
                 }
 
                 StatusBarText.Text = "Session restored";
@@ -694,6 +750,7 @@ namespace SCE2
         private void Git_Click(object sender, RoutedEventArgs e)
         {
             ToggleGitPanel();
+            if (ExplorerPanel.Visibility == Visibility.Visible) ToggleExplorerPanel();
         }
 
         private void ToggleGitPanel()
@@ -786,6 +843,113 @@ namespace SCE2
                 LFButton.Content = "LF";
                 CodeEditor.LineEnding = LineEnding.LF;
             }
+        }
+
+        private void ToggleExplorerPanel()
+        {
+            isExplorerPanelVisible = !isExplorerPanelVisible;
+
+            if (isExplorerPanelVisible)
+            {
+                ExplorerColumn.Width = new GridLength(explorerPanelWidth);
+                ExplorerPanel.Visibility = Visibility.Visible;
+                ExplorerSplitter.Visibility = Visibility.Visible;
+
+                FolderExplorerPanel.FileSelected += FolderExplorerPanel_FileSelected;
+            }
+            else
+            {
+                ExplorerColumn.Width = new GridLength(0);
+                ExplorerPanel.Visibility = Visibility.Collapsed;
+                ExplorerSplitter.Visibility = Visibility.Collapsed;
+
+                FolderExplorerPanel.FileSelected -= FolderExplorerPanel_FileSelected;
+            }
+        }
+
+        private void ExplorerSplitter_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            isDraggingExplorerSplitter = true;
+            lastExplorerPointerPosition = e.GetCurrentPoint(ExplorerSplitter).Position;
+            ExplorerSplitter.CapturePointer(e.Pointer);
+        }
+
+        private void ExplorerSplitter_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (isDraggingExplorerSplitter)
+            {
+                var currentPosition = e.GetCurrentPoint(ExplorerSplitter).Position;
+                var deltaX = currentPosition.X - lastExplorerPointerPosition.X;
+
+                var newWidth = explorerPanelWidth + deltaX;
+                var windowWidth = ((FrameworkElement)this.Content).ActualWidth;
+
+                if (newWidth >= 200 && newWidth <= windowWidth / 2)
+                {
+                    explorerPanelWidth = newWidth;
+                    ExplorerColumn.Width = new GridLength(explorerPanelWidth);
+                }
+
+                lastExplorerPointerPosition = currentPosition;
+            }
+        }
+
+        private void ExplorerSplitter_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            isDraggingExplorerSplitter = false;
+            ExplorerSplitter.ReleasePointerCapture(e.Pointer);
+        }
+
+        private async void FolderExplorerPanel_FileSelected(object sender, FileSelectedEventArgs e)
+        {
+            try
+            {
+                if (File.Exists(e.FilePath))
+                {
+                    foreach (var tab in openTabs.ToList())
+                    {
+                        if (tab.Saved == true && tab.IsFolder == true)
+                        {
+                            DestroyTab(tab.TabId);
+                        }
+                    }
+
+                    var filePath = e.FilePath;
+                    var fileName = Path.GetFileName(filePath);
+
+                    var file = new FileInfo(filePath);
+
+                    var text = await File.ReadAllTextAsync(filePath);
+
+                    var existingTab = openTabs.FirstOrDefault(t => t.FilePath == filePath);
+                    if (existingTab != null)
+                    {
+                        SwitchToTab(existingTab.TabId, true);
+                        return;
+                    }
+
+                    if (activeTabId != null)
+                    {
+                        SaveCurrentTabPosition();
+                    }
+
+                    CreateTab(fileName, filePath, true);
+
+                    CodeEditor.LoadText(text);
+                    currentFilePath = filePath;
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusBarText.Text = $"Error opening file: {ex.Message}";
+                System.Diagnostics.Debug.WriteLine($"Error opening file {e.FilePath}: {ex.Message}");
+            }
+        }
+
+        private void Explorer_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleExplorerPanel();
+            if (GitPanel.Visibility == Visibility.Visible) ToggleGitPanel();
         }
     }
 }

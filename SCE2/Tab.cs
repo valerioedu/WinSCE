@@ -30,6 +30,7 @@ namespace SCE2
         public string TabText { get; set; }
         public string Text { get; set; }
         public bool Saved { get; set; }
+        public bool IsFolder { get; set; }
 
         public TabInfo(string tabId, string filePath, int cursorLine, string tabText)
         {
@@ -42,7 +43,7 @@ namespace SCE2
 
     public sealed partial class MainWindow : Window
     {
-        private Button CreateTab(string tabText, string path = null, string tabId = null)
+        private Button CreateTab(string tabText, string path = null, bool folder = false, string tabId = null)
         {
             if (string.IsNullOrEmpty(tabId))
                 tabId = Guid.NewGuid().ToString();
@@ -134,6 +135,10 @@ namespace SCE2
             TabContainer.Children.Add(tabButton);
 
             var tabInfo = new TabInfo(tabId, path ?? "", 0, tabText);
+            tabInfo.Saved = true;
+            if (folder) tabInfo.IsFolder = true;
+            else tabInfo.IsFolder = false;
+
             openTabs.Add(tabInfo);
 
             if (activeTabId == null)
@@ -228,6 +233,8 @@ namespace SCE2
 
                 string currentFileName = Path.GetFileName(tabInfo.FilePath);
                 FileNameBarText.Text = currentFilePath;
+
+                DetectLanguageFromFile(currentFileName);
 
                 UpdateCursorPosition();
                 if (gitPanelWidth != 0)

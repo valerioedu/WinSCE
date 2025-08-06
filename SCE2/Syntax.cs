@@ -1,4 +1,4 @@
-﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -118,15 +118,23 @@ namespace SCE2
                             new SyntaxHighlights(@"\b\d+\.?\d*[fFdDmM]?\b", NumberColor, NumberColor),
                             new SyntaxHighlights(@"\b0[xX][0-9a-fA-F]+\b", NumberColor, NumberColor),
                             new SyntaxHighlights(@"\b([a-zA-Z_]\w*)\s*(?=\()", FunctionColor, FunctionColor),
+                            new SyntaxHighlights(@"\b(Task|Thread|Timer|DateTime|TimeSpan|Guid|Uri|StringBuilder|List|Dictionary|Array|Queue|Stack|HashSet|Exception|HttpClient|Stream|FileStream|File|Directory|Path|Environment|Process|Console|Math|Random|Regex|JsonSerializer|XmlDocument|DataTable|SqlConnection|Button|TextBox|Label|Form|Window|Panel|Canvas|Grid|Image|Application|Binding|Style|Brush|Color|Point|Size|Type|Assembly|ObservableCollection|Action|Func|EventHandler|DbContext|DbSet|Controller|ActionResult|IServiceProvider|IConfiguration|ILogger|Host)(?=\b)", ClassColor, ClassColor),
                             new SyntaxHighlights(@"(?<=\b(?:var|int|string|bool|double|float|decimal|char|object)\s+)([a-z][a-zA-Z_]\w*)", VariableColor, VariableColor),
                             new SyntaxHighlights(@"(?<=\(\s*(?:[a-zA-Z_]\w*\s+)?)([a-z][a-zA-Z_]\w*)(?=\s*[,\)])", VariableColor, VariableColor),
                             new SyntaxHighlights(@"\b([a-z][a-zA-Z_]\w*)(?=\.[a-zA-Z_]\w*\s*\()", VariableColor, VariableColor),
                             new SyntaxHighlights(@"(?<=\bnew\s+)([a-zA-Z_]\w*)(?=\s*[\<\[\(\{])", ClassColor, ClassColor),
+                            new SyntaxHighlights(@"(?<=\b(?:List|Dictionary|Queue|Stack|HashSet|IEnumerable|ICollection|IList|Task|Action|Func)<[^>]+>\s+)([a-zA-Z_]\w*)", VariableColor, VariableColor),
+                            new SyntaxHighlights(@"(?<=\b[a-zA-Z_]\w*\[\]\s+)([a-zA-Z_]\w*)", VariableColor, VariableColor),
+                            new SyntaxHighlights(@"(?<=\(\s*(?:[a-zA-Z_][\w\[\]<>,\s]*\s+))([a-zA-Z_]\w*)(?=\s*[,\)])", VariableColor, VariableColor),
+                            new SyntaxHighlights(@"\b([a-z][a-zA-Z_]\w*)(?=\s*[+\-*/%&|^]?=)", VariableColor, VariableColor),
+                            new SyntaxHighlights(@"(?<=,\s*(?:[a-zA-Z_][\w\[\]<>,\s]*\s+))([a-zA-Z_]\w*)(?=\s*[,\)])", VariableColor, VariableColor),
+                            new SyntaxHighlights(@"(?<=\bforeach\s*\(\s*(?:var|[a-zA-Z_][\w\[\]<>,\s]*)\s+)([a-zA-Z_]\w*)(?=\s+in\b)", VariableColor, VariableColor),
                             new SyntaxHighlights(@"\b([a-zA-Z_]\w*)(?=\.[a-zA-Z_]\w*\s*\()", ClassColor, ClassColor),
                             new SyntaxHighlights(@"(?<=\b[a-zA-Z_][\w\.]*\.)([a-zA-Z_]\w*)(?=\.[a-zA-Z_]\w*\s*\()", ClassColor, ClassColor),
                             new SyntaxHighlights(@"(?<=<\s*)([a-zA-Z_]\w*)(?=\s*[,>])", ClassColor, ClassColor),
-                            new SyntaxHighlights(@"\b(if|else|for|foreach|while|do|switch|case|default|break|continue|goto|return|try|catch|throw|finally|await)\b", ControlFlowColor, ControlFlowColor),
-                            new SyntaxHighlights(@"\b(int|char|float|double|decimal|string|bool|void|var|class|struct|enum|interface|namespace|using|public|private|protected|object|readonly|get|set|internal|static|abstract|virtual|override|new|this|base|typeof|sizeof|true|false|null|async)\b", KeywordColor, KeywordColor),
+                            new SyntaxHighlights(@"\b([a-z][a-zA-Z_]\w*)(?=\.[a-zA-Z_]\w*\s*[\(\[])", VariableColor, VariableColor),
+                            new SyntaxHighlights(@"\b(if|else|for|foreach|while|do|switch|case|in|default|break|continue|goto|return|try|catch|throw|finally|await)\b", ControlFlowColor, ControlFlowColor),
+                            new SyntaxHighlights(@"\b(int|char|float|double|decimal|string|bool|void|var|class|struct|enum|interface|namespace|using|public|private|sealed|partial|event|protected|object|readonly|get|set|internal|static|abstract|virtual|override|new|this|base|typeof|sizeof|true|false|null|async)\b", KeywordColor, KeywordColor),
                             new SyntaxHighlights(@"""(?:[^""\\]|\\.)*""", StringColor, StringColor),
                             new SyntaxHighlights(@"@""(?:[^""]|"""")*""", StringColor, StringColor),
                             new SyntaxHighlights(@"\\[abfnrtv\\'\""]", EscapeSequenceColor, EscapeSequenceColor),

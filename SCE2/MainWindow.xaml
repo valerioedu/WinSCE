@@ -53,7 +53,7 @@
                                 </MenuFlyoutItem.KeyboardAccelerators>
                             </MenuFlyoutItem>
 
-                            <MenuFlyoutItem Text="New Window" FontSize="11" Click="NewSession_Click"
+                            <MenuFlyoutItem Text="New Window" FontSize="11" Click="NewWindow_Click"
                                             KeyboardAcceleratorTextOverride="Ctrl+Shift+N"
                                             Background="{StaticResource SystemChromeMediumColor}"
                                             CornerRadius="0">
@@ -113,7 +113,7 @@
 
                             <MenuFlyoutSeparator/>
 
-                            <MenuFlyoutItem Text="Close Session" FontSize="11"
+                            <MenuFlyoutItem Text="Close File" FontSize="11"
                                             KeyboardAcceleratorTextOverride="Alt+Q"
                                             Background="{StaticResource SystemChromeMediumColor}"
                                             CornerRadius="0">
@@ -173,6 +173,10 @@
                         Background="Transparent" BorderThickness="0"
                         VerticalAlignment="Stretch" VerticalContentAlignment="Center"
                         HorizontalContentAlignment="Center" CornerRadius="0" Click="Git_Click"/>
+                <Button Content="Explorer" Padding="8,0" Margin="2,0,0,0" FontSize="13"
+                        Background="Transparent" BorderThickness="0"
+                        VerticalAlignment="Stretch" VerticalContentAlignment="Center"
+                        HorizontalContentAlignment="Center" CornerRadius="0" Click="Explorer_Click"/>
                 <Button Content="Terminal" Padding="8,0" Margin="2,0,0,0" FontSize="13"
                         Background="Transparent" BorderThickness="0"
                         VerticalAlignment="Stretch" VerticalContentAlignment="Center"
@@ -188,13 +192,15 @@
 
         <Grid Grid.Row="1" Background="{ThemeResource SystemChromeLowColor}">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="ExplorerColumn" Width="0"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition x:Name="GitColumn" Width="0"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
             <Border x:Name="GitPanel" 
-                    Grid.Column="0" 
+                    Grid.Column="2" 
                     Background="{ThemeResource SystemChromeLowColor}"
                     BorderThickness="0,1,1,0" 
                     BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
@@ -203,7 +209,7 @@
             </Border>
 
             <Border x:Name="GitSplitter" 
-                    Grid.Column="1" 
+                    Grid.Column="3" 
                     Width="2" 
                     VerticalAlignment="Stretch"
                     Background="{ThemeResource SystemControlForegroundBaseLowBrush}"
@@ -213,7 +219,27 @@
                     PointerMoved="GitSplitter_PointerMoved"
                     PointerReleased="GitSplitter_PointerReleased"/>
 
-            <Grid Grid.Column="2">
+            <Border x:Name="ExplorerPanel" 
+        Grid.Column="0" 
+        Background="{ThemeResource SystemChromeLowColor}"
+        BorderThickness="0,1,1,0" 
+        BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
+        Visibility="Collapsed">
+                <local:FolderExplorerControl x:Name="FolderExplorerPanel"/>
+            </Border>
+
+            <Border x:Name="ExplorerSplitter" 
+        Grid.Column="1" 
+        Width="2" 
+        VerticalAlignment="Stretch"
+        Background="{ThemeResource SystemControlForegroundBaseLowBrush}"
+        Visibility="Collapsed"
+        ManipulationMode="TranslateX"
+        PointerPressed="ExplorerSplitter_PointerPressed"
+        PointerMoved="ExplorerSplitter_PointerMoved"
+        PointerReleased="ExplorerSplitter_PointerReleased"/>
+
+            <Grid Grid.Column="4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>

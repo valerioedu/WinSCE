@@ -306,5 +306,44 @@ namespace SCE2
         {
             Application.Current.Exit();
         }
+
+        private void NewWindow_Click(object sender, RoutedEventArgs e)
+        {
+            var newWindow = new MainWindow();
+            newWindow.Activate();
+        }
+
+        private async void OpenFolder_Click(object sender, RoutedEventArgs e)
+        {
+            var picker = new FolderPicker();
+            picker.FileTypeFilter.Add("*");
+            picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+
+            var folder = await picker.PickSingleFolderAsync();
+
+            currentFolderPath = folder.Path;
+
+
+            if (folder != null)
+            {
+                if (!isExplorerPanelVisible)
+                {
+                    ToggleExplorerPanel();
+                }
+
+                FolderExplorerPanel.SetFolderPath(folder.Path);
+
+                try
+                {
+                    TerminalPanel.ExecuteCommand($"cd \"{folder.Path}\"");
+                }
+                catch { }
+
+                StatusBarText.Text = $"Opened folder: {folder.Name}";
+            }
+        }
     }
 }
