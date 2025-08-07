@@ -491,6 +491,142 @@ namespace SCE2
             }
         }
 
+        private void ScrollViewer_RightTapped(object sender, RightTappedRoutedEventArgs e)
+        {
+            e.Handled = true;
+            ShowEmptySpaceContextMenu(sender, e.GetPosition(sender as FrameworkElement));
+        }
+
+        private void Grid_RightTapped(object sender, RightTappedRoutedEventArgs e)
+        {
+            e.Handled = true;
+            ShowEmptySpaceContextMenu(sender, e.GetPosition(sender as FrameworkElement));
+        }
+
+        private void ShowEmptySpaceContextMenu(object sender, Windows.Foundation.Point position)
+        {
+            if (!string.IsNullOrEmpty(CurrentFolderPath))
+            {
+                var contextMenu = this.Resources["EmptySpaceContextMenu"] as MenuFlyout;
+                contextMenu?.ShowAt(sender as FrameworkElement, position);
+            }
+        }
+
+        private async void NewFileMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(CurrentFolderPath)) return;
+
+            var dialog = new ContentDialog
+            {
+                Title = "New File",
+                Content = new TextBox
+                {
+                    Text = "NewFile.txt",
+                    SelectionStart = 0,
+                    SelectionLength = "NewFile".Length
+                },
+                PrimaryButtonText = "Create",
+                CloseButtonText = "Cancel",
+                XamlRoot = this.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                var textBox = dialog.Content as TextBox;
+                var fileName = textBox?.Text?.Trim();
+
+                if (!string.IsNullOrEmpty(fileName))
+                {
+                    try
+                    {
+                        var filePath = Path.Combine(CurrentFolderPath, fileName);
+
+                        if (!File.Exists(filePath))
+                        {
+                            await File.WriteAllTextAsync(filePath, string.Empty);
+                            await LoadFolderStructure();
+                        }
+                        else
+                        {
+                            await ShowErrorDialog("File already exists", $"A file named '{fileName}' already exists.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        await ShowErrorDialog("Error creating file", ex.Message);
+                        System.Diagnostics.Debug.WriteLine($"Error creating file: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        private async void NewFolderMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(CurrentFolderPath)) return;
+
+            var dialog = new ContentDialog
+            {
+                Title = "New Folder",
+                Content = new TextBox
+                {
+                    Text = "NewFolder",
+                    SelectionStart = 0,
+                    SelectionLength = "NewFolder".Length
+                },
+                PrimaryButtonText = "Create",
+                CloseButtonText = "Cancel",
+                XamlRoot = this.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                var textBox = dialog.Content as TextBox;
+                var folderName = textBox?.Text?.Trim();
+
+                if (!string.IsNullOrEmpty(folderName))
+                {
+                    try
+                    {
+                        var folderPath = Path.Combine(CurrentFolderPath, folderName);
+
+                        if (!Directory.Exists(folderPath))
+                        {
+                            Directory.CreateDirectory(folderPath);
+                            await LoadFolderStructure();
+                        }
+                        else
+                        {
+                            await ShowErrorDialog("Folder already exists", $"A folder named '{folderName}' already exists.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        await ShowErrorDialog("Error creating folder", ex.Message);
+                        System.Diagnostics.Debug.WriteLine($"Error creating folder: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        private async void RefreshMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            await LoadFolderStructure();
+        }
+
+        private async Task ShowErrorDialog(string title, string message)
+        {
+            var errorDialog = new ContentDialog
+            {
+                Title = title,
+                Content = message,
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            };
+            await errorDialog.ShowAsync();
+        }
+
         private void OpenFileMenuItem_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedItem != null && !_selectedItem.IsDirectory)

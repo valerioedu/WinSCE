@@ -32,6 +32,32 @@
                             Click="OpenInExplorerMenuItem_Click"/>
         </MenuFlyout>
 
+        <MenuFlyout x:Key="EmptySpaceContextMenu">
+            <MenuFlyoutItem x:Name="NewFileMenuItem" 
+                            Text="New File" 
+                            Click="NewFileMenuItem_Click"
+                            Padding="0">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="📄" FontFamily="Segoe UI Emoji"/>
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutItem x:Name="NewFolderMenuItem" 
+                            Text="New Folder" 
+                            Click="NewFolderMenuItem_Click">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="📁" FontFamily="Segoe UI Emoji"/>
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutSeparator/>
+            <MenuFlyoutItem x:Name="RefreshMenuItem" 
+                            Text="Refresh" 
+                            Click="RefreshMenuItem_Click">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="⟳" FontFamily="Segoe UI Emoji"/>
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+        </MenuFlyout>
+
         <DataTemplate x:Key="FileSystemItemTemplate" x:DataType="local:FileSystemItem">
             <StackPanel Orientation="Horizontal" Spacing="6">
                 <Grid Width="16" Height="16">
@@ -99,20 +125,24 @@
         <ScrollViewer Grid.Row="1" 
                       VerticalScrollBarVisibility="Auto" 
                       HorizontalScrollBarVisibility="Auto"
-                      ZoomMode="Disabled">
-            <TreeView x:Name="FileTreeView" 
-                      Background="Transparent"
-                      SelectionMode="Single"
-                      ItemInvoked="FileTreeView_ItemInvoked"
-                      PointerPressed="FileTreeView_PointerPressed">
-                <TreeView.ItemTemplate>
-                    <DataTemplate x:DataType="local:FileSystemItem">
-                        <TreeViewItem ItemsSource="{x:Bind Children}" 
-                                      IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
-                                      ContentTemplate="{StaticResource FileSystemItemTemplate}"/>
-                    </DataTemplate>
-                </TreeView.ItemTemplate>
-            </TreeView>
+                      ZoomMode="Disabled"
+                      RightTapped="ScrollViewer_RightTapped">
+
+            <Grid Margin="8,4,8,20" RightTapped="Grid_RightTapped">
+                <TreeView x:Name="FileTreeView" 
+                          Background="Transparent"
+                          SelectionMode="Single"
+                          ItemInvoked="FileTreeView_ItemInvoked"
+                          PointerPressed="FileTreeView_PointerPressed">
+                    <TreeView.ItemTemplate>
+                        <DataTemplate x:DataType="local:FileSystemItem">
+                            <TreeViewItem ItemsSource="{x:Bind Children}" 
+                                          IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
+                                          ContentTemplate="{StaticResource FileSystemItemTemplate}"/>
+                        </DataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+            </Grid>
         </ScrollViewer>
     </Grid>
 </UserControl>
