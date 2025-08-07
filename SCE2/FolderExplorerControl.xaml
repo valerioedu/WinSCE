@@ -104,7 +104,7 @@
                       Background="Transparent"
                       SelectionMode="Single"
                       ItemInvoked="FileTreeView_ItemInvoked"
-                      RightTapped="FileTreeView_RightTapped">
+                      PointerPressed="FileTreeView_PointerPressed">
                 <TreeView.ItemTemplate>
                     <DataTemplate x:DataType="local:FileSystemItem">
                         <TreeViewItem ItemsSource="{x:Bind Children}" 

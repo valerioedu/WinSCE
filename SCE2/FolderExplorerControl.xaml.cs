@@ -459,23 +459,35 @@ namespace SCE2
             return items;
         }
 
-        private void FileTreeView_RightTapped(object sender, RightTappedRoutedEventArgs e)
+        private void FileTreeView_PointerPressed(object sender, PointerRoutedEventArgs e)
         {
-            var treeView = sender as TreeView;
-            var element = e.OriginalSource as FrameworkElement;
+            var pointer = e.GetCurrentPoint(sender as UIElement);
 
-            while (element != null && !(element is TreeViewItem))
+            if (pointer.Properties.IsRightButtonPressed)
             {
-                element = element.Parent as FrameworkElement;
-            }
+                e.Handled = true;
 
-            if (element is TreeViewItem treeViewItem && treeViewItem.Content is FileSystemItem item)
-            {
-                _selectedItem = item;
-                treeView.SelectedItem = item;
+                var treeView = sender as TreeView;
+                var element = e.OriginalSource as FrameworkElement;
 
-                var contextMenu = this.Resources["FileContextMenu"] as MenuFlyout;
-                contextMenu?.ShowAt(treeView, e.GetPosition(treeView));
+                while (element != null && !(element is TreeViewItem))
+                {
+                    element = element.Parent as FrameworkElement ??
+                             Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(element) as FrameworkElement;
+                }
+
+                if (element is TreeViewItem treeViewItem)
+                {
+                    _selectedItem = treeViewItem.DataContext as FileSystemItem;
+                    if (_selectedItem == null)
+                        _selectedItem = treeViewItem.Content as FileSystemItem;
+
+                    if (_selectedItem != null)
+                    {
+                        var contextMenu = this.Resources["FileContextMenu"] as MenuFlyout;
+                        contextMenu?.ShowAt(treeView, pointer.Position);
+                    }
+                }
             }
         }
 
