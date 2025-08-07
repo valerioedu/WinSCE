@@ -1,25 +1,14 @@
-﻿using Microsoft.UI;
-using Microsoft.UI.Text;
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.NetworkInformation;
-using System.Security.Claims;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using TextControlBoxNS;
-using Windows.Foundation;
 using Windows.Storage;
-using Windows.Storage.Pickers;
 using Windows.System;
-using Windows.UI;
 
 namespace SCE2
 {
@@ -54,29 +43,6 @@ namespace SCE2
         private readonly Queue<List<int>> _searchMatchesPool = new();
 
         private SettingsWindow settingsWindow;
-
-        private bool isTerminalVisible = false;
-        private bool isDraggingSplitter = false;
-        private double terminalHeight = 300;
-        private Point lastPointerPosition;
-
-        private bool isGitPanelVisible = false;
-        private bool isDraggingGitSplitter = false;
-        private double gitPanelWidth = 380;
-        private Point lastGitPointerPosition;
-
-        private List<TabInfo> openTabs = new List<TabInfo>();
-        private string activeTabId = null;
-
-        public TextBlock GitBarTextPublic => GitBarText;
-
-        private bool isExplorerPanelVisible = false;
-        private bool isDraggingExplorerSplitter = false;
-        private double explorerPanelWidth = 300;
-        private Point lastExplorerPointerPosition;
-
-        public static string currentFolderPath = string.Empty;
-        private string sessionTempFolder = Path.Combine(Path.GetTempPath(), "SCE2_Sessions");
 
         public MainWindow()
         {
@@ -202,6 +168,12 @@ namespace SCE2
                         if (restoreSessionEnabled)
                         {
                             SaveLastSession();
+                        }
+
+                        foreach (var tab in openTabs.ToList())
+                        {
+                            tab.Saved = true;
+                            if (tab.TabText.EndsWith("*")) tab.TabText = tab.TabText.TrimEnd('*');
                         }
 
                         if (autoSaveTimer != null)
@@ -371,29 +343,6 @@ namespace SCE2
             return indentation;
         }
 
-        private bool ShouldIndentNextLine(string lineText)
-        {
-            var trimmedLine = lineText.TrimEnd();
-
-            return trimmedLine.EndsWith("{") ||
-                   trimmedLine.EndsWith(":") ||
-                   IsControlStructure(trimmedLine);
-        }
-
-        private bool IsControlStructure(string line)
-        {
-            var trimmed = line.Trim();
-
-            return trimmed.StartsWith("if ") ||
-                   trimmed.StartsWith("else") ||
-                   trimmed.StartsWith("while ") ||
-                   trimmed.StartsWith("for ") ||
-                   trimmed.StartsWith("do") ||
-                   trimmed.StartsWith("switch ") ||
-                   trimmed.StartsWith("case ") ||
-                   trimmed.StartsWith("default:");
-        }
-
         private string GetIndentString()
         {
             return new string(' ', CodeEditor.NumberOfSpacesForTab);
@@ -434,19 +383,6 @@ namespace SCE2
                 FileNameBarText.Text = GitBarText.Text;
                 System.Diagnostics.Debug.WriteLine($"UpdateCursorPosition error: {ex.Message}");
             }
-        }
-
-        private void Settings_Click(object sender, RoutedEventArgs e)
-        {
-            if (settingsWindow != null)
-            {
-                settingsWindow.Close();
-                settingsWindow = null;
-                return;
-            }
-
-            settingsWindow = new SettingsWindow(this);
-            settingsWindow.Activate();
         }
 
         private void LoadSettings()
@@ -533,8 +469,6 @@ namespace SCE2
                 }
 
                 localSettings.Values["ActiveTabId"] = activeTabId;
-
-                localSettings.Values["LastContent"] = CodeEditor.Text;
                 localSettings.Values["LastFilePath"] = currentFilePath;
                 localSettings.Values["LastFolder"] = currentFolderPath;
             }
@@ -608,7 +542,6 @@ namespace SCE2
                 }
                 else
                 {
-                    var lastContent = localSettings.Values["LastContent"] as string;
                     var lastFilePath = localSettings.Values["LastFilePath"] as string;
 
 
@@ -687,270 +620,6 @@ namespace SCE2
         public (short tabSize, bool autoIndent, bool autoCompletion, bool autoBraceClosing, bool lineNumbers, bool wordWrap, bool autoSave, bool restoreSession, int autoSaveInterval) GetCurrentSettings()
         {
             return ((short)CodeEditor.NumberOfSpacesForTab, autoIndentationEnabled, autoCompletionEnabled, autoBraceClosingEnabled, lineNumbersEnabled, wordWrapEnabled, autoSaveEnabled, restoreSessionEnabled, autoSaveInterval);
-        }
-
-        private void Terminal_Click(object sender, RoutedEventArgs e)
-        {
-            ToggleTerminal();
-        }
-
-        private void ToggleTerminal()
-        {
-            isTerminalVisible = !isTerminalVisible;
-
-            if (isTerminalVisible)
-            {
-                TerminalRow.Height = new GridLength(terminalHeight);
-                TerminalPanel.Visibility = Visibility.Visible;
-                TerminalSplitter.Visibility = Visibility.Visible;
-
-                TerminalPanel.FocusInput();
-            }
-            else
-            {
-                TerminalRow.Height = new GridLength(0);
-                TerminalPanel.Visibility = Visibility.Collapsed;
-                TerminalSplitter.Visibility = Visibility.Collapsed;
-
-                CodeEditor.Focus(FocusState.Programmatic);
-            }
-        }
-        private void TerminalSplitter_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            isDraggingSplitter = true;
-            lastPointerPosition = e.GetCurrentPoint(TerminalSplitter).Position;
-            TerminalSplitter.CapturePointer(e.Pointer);
-        }
-
-        private void TerminalSplitter_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            if (isDraggingSplitter)
-            {
-                var currentPosition = e.GetCurrentPoint(TerminalSplitter).Position;
-                var deltaY = lastPointerPosition.Y - currentPosition.Y;
-
-                var newHeight = terminalHeight + deltaY;
-                var windowHeight = ((FrameworkElement)this.Content).ActualHeight;
-
-                if (newHeight >= 100 && newHeight <= windowHeight - 200)
-                {
-                    terminalHeight = newHeight;
-                    TerminalRow.Height = new GridLength(terminalHeight);
-                }
-
-                lastPointerPosition = currentPosition;
-            }
-        }
-
-        private void TerminalSplitter_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            isDraggingSplitter = false;
-            TerminalSplitter.ReleasePointerCapture(e.Pointer);
-        }
-
-        private void Git_Click(object sender, RoutedEventArgs e)
-        {
-            ToggleGitPanel();
-            if (ExplorerPanel.Visibility == Visibility.Visible) ToggleExplorerPanel();
-        }
-
-        private void ToggleGitPanel()
-        {
-            isGitPanelVisible = !isGitPanelVisible;
-
-            if (isGitPanelVisible)
-            {
-                GitColumn.Width = new GridLength(gitPanelWidth);
-                GitPanel.Visibility = Visibility.Visible;
-                GitSplitter.Visibility = Visibility.Visible;
-
-                UpdateGitContext();
-            }
-            else
-            {
-                GitColumn.Width = new GridLength(0);
-                GitPanel.Visibility = Visibility.Collapsed;
-                GitSplitter.Visibility = Visibility.Collapsed;
-            }
-        }
-
-        private void UpdateGitContext()
-        {
-            try
-            {
-                if (!string.IsNullOrEmpty(currentFilePath))
-                {
-                    GitControlPanel.SetFileContext(currentFilePath);
-                }
-                else
-                {
-                    var currentDir = System.IO.Directory.GetCurrentDirectory();
-                    GitControlPanel.SetWorkingDirectory(currentDir);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Git context update error: {ex.Message}");
-            }
-        }
-
-        private void GitSplitter_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            isDraggingGitSplitter = true;
-            lastGitPointerPosition = e.GetCurrentPoint(GitSplitter).Position;
-            GitSplitter.CapturePointer(e.Pointer);
-        }
-
-        private void GitSplitter_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            if (isDraggingGitSplitter)
-            {
-                var currentPosition = e.GetCurrentPoint(GitSplitter).Position;
-                var deltaX = currentPosition.X - lastGitPointerPosition.X;
-
-                var newWidth = gitPanelWidth + deltaX;
-                var windowWidth = ((FrameworkElement)this.Content).ActualWidth;
-
-                if (newWidth >= 200 && newWidth <= windowWidth / 2)
-                {
-                    gitPanelWidth = newWidth;
-                    GitColumn.Width = new GridLength(gitPanelWidth);
-                }
-
-                lastGitPointerPosition = currentPosition;
-            }
-        }
-
-        private void GitSplitter_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            isDraggingGitSplitter = false;
-            GitSplitter.ReleasePointerCapture(e.Pointer);
-        }
-
-        private void LFButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (LFButton.Content == "LF")
-            {
-                LFButton.Content = "CRLF";
-                CodeEditor.LineEnding = LineEnding.CRLF;
-            }
-            else if (LFButton.Content == "CRLF")
-            {
-                LFButton.Content = "CR";
-                CodeEditor.LineEnding = LineEnding.CR;
-            }
-            else
-            {
-                LFButton.Content = "LF";
-                CodeEditor.LineEnding = LineEnding.LF;
-            }
-        }
-
-        private void ToggleExplorerPanel()
-        {
-            isExplorerPanelVisible = !isExplorerPanelVisible;
-
-            if (isExplorerPanelVisible)
-            {
-                ExplorerColumn.Width = new GridLength(explorerPanelWidth);
-                ExplorerPanel.Visibility = Visibility.Visible;
-                ExplorerSplitter.Visibility = Visibility.Visible;
-
-                FolderExplorerPanel.FileSelected += FolderExplorerPanel_FileSelected;
-            }
-            else
-            {
-                ExplorerColumn.Width = new GridLength(0);
-                ExplorerPanel.Visibility = Visibility.Collapsed;
-                ExplorerSplitter.Visibility = Visibility.Collapsed;
-
-                FolderExplorerPanel.FileSelected -= FolderExplorerPanel_FileSelected;
-            }
-        }
-
-        private void ExplorerSplitter_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            isDraggingExplorerSplitter = true;
-            lastExplorerPointerPosition = e.GetCurrentPoint(ExplorerSplitter).Position;
-            ExplorerSplitter.CapturePointer(e.Pointer);
-        }
-
-        private void ExplorerSplitter_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            if (isDraggingExplorerSplitter)
-            {
-                var currentPosition = e.GetCurrentPoint(ExplorerSplitter).Position;
-                var deltaX = currentPosition.X - lastExplorerPointerPosition.X;
-
-                var newWidth = explorerPanelWidth + deltaX;
-                var windowWidth = ((FrameworkElement)this.Content).ActualWidth;
-
-                if (newWidth >= 200 && newWidth <= windowWidth / 2)
-                {
-                    explorerPanelWidth = newWidth;
-                    ExplorerColumn.Width = new GridLength(explorerPanelWidth);
-                }
-
-                lastExplorerPointerPosition = currentPosition;
-            }
-        }
-
-        private void ExplorerSplitter_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            isDraggingExplorerSplitter = false;
-            ExplorerSplitter.ReleasePointerCapture(e.Pointer);
-        }
-
-        private async void FolderExplorerPanel_FileSelected(object sender, FileSelectedEventArgs e)
-        {
-            try
-            {
-                if (File.Exists(e.FilePath))
-                {
-                    foreach (var tab in openTabs.ToList())
-                    {
-                        if (tab.Saved == true && tab.IsFolder == true)
-                        {
-                            DestroyTab(tab.TabId);
-                        }
-                    }
-
-                    var filePath = e.FilePath;
-                    var fileName = Path.GetFileName(filePath);
-
-                    var file = new FileInfo(filePath);
-
-                    var text = await File.ReadAllTextAsync(filePath);
-
-                    var existingTab = openTabs.FirstOrDefault(t => t.FilePath == filePath);
-                    if (existingTab != null)
-                    {
-                        SwitchToTab(existingTab.TabId, true);
-                        return;
-                    }
-
-                    if (activeTabId != null)
-                    {
-                        SaveCurrentTabPosition();
-                    }
-
-                    CreateTab(fileName, filePath, true);
-
-                    CodeEditor.LoadText(text);
-                    currentFilePath = filePath;
-                }
-            }
-            catch (Exception ex)
-            {
-                StatusBarText.Text = $"Error opening file: {ex.Message}";
-                System.Diagnostics.Debug.WriteLine($"Error opening file {e.FilePath}: {ex.Message}");
-            }
-        }
-
-        private void Explorer_Click(object sender, RoutedEventArgs e)
-        {
-            ToggleExplorerPanel();
-            if (GitPanel.Visibility == Visibility.Visible) ToggleGitPanel();
         }
     }
 }

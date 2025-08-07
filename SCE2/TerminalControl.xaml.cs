@@ -3,24 +3,89 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Animation;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.System;
 using Windows.UI;
 using System.Text;
+using Windows.Foundation;
 
 // TODO: Handle arrows movement and better cursor positioning with spaces
 
 namespace SCE2
 {
+    public sealed partial class MainWindow : Window
+    {
+        private bool isTerminalVisible = false;
+        private bool isDraggingSplitter = false;
+        private double terminalHeight = 300;
+        private Point lastPointerPosition;
+
+        private void Terminal_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleTerminal();
+        }
+
+        private void ToggleTerminal()
+        {
+            isTerminalVisible = !isTerminalVisible;
+
+            if (isTerminalVisible)
+            {
+                TerminalRow.Height = new GridLength(terminalHeight);
+                TerminalPanel.Visibility = Visibility.Visible;
+                TerminalSplitter.Visibility = Visibility.Visible;
+
+                TerminalPanel.FocusInput();
+            }
+            else
+            {
+                TerminalRow.Height = new GridLength(0);
+                TerminalPanel.Visibility = Visibility.Collapsed;
+                TerminalSplitter.Visibility = Visibility.Collapsed;
+
+                CodeEditor.Focus(FocusState.Programmatic);
+            }
+        }
+        private void TerminalSplitter_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            isDraggingSplitter = true;
+            lastPointerPosition = e.GetCurrentPoint(TerminalSplitter).Position;
+            TerminalSplitter.CapturePointer(e.Pointer);
+        }
+
+        private void TerminalSplitter_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (isDraggingSplitter)
+            {
+                var currentPosition = e.GetCurrentPoint(TerminalSplitter).Position;
+                var deltaY = lastPointerPosition.Y - currentPosition.Y;
+
+                var newHeight = terminalHeight + deltaY;
+                var windowHeight = ((FrameworkElement)this.Content).ActualHeight;
+
+                if (newHeight >= 100 && newHeight <= windowHeight - 200)
+                {
+                    terminalHeight = newHeight;
+                    TerminalRow.Height = new GridLength(terminalHeight);
+                }
+
+                lastPointerPosition = currentPosition;
+            }
+        }
+
+        private void TerminalSplitter_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            isDraggingSplitter = false;
+            TerminalSplitter.ReleasePointerCapture(e.Pointer);
+        }
+    }
+
     public sealed partial class TerminalControl : UserControl
     {
         private Process shellProcess;

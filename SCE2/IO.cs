@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TextControlBoxNS;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 
@@ -344,6 +345,38 @@ namespace SCE2
 
                 StatusBarText.Text = $"Opened folder: {folder.Name}";
             }
+        }
+
+        private void LFButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (LFButton.Content == "LF")
+            {
+                LFButton.Content = "CRLF";
+                CodeEditor.LineEnding = LineEnding.CRLF;
+            }
+            else if (LFButton.Content == "CRLF")
+            {
+                LFButton.Content = "CR";
+                CodeEditor.LineEnding = LineEnding.CR;
+            }
+            else
+            {
+                LFButton.Content = "LF";
+                CodeEditor.LineEnding = LineEnding.LF;
+            }
+        }
+
+        private void Settings_Click(object sender, RoutedEventArgs e)
+        {
+            if (settingsWindow != null)
+            {
+                settingsWindow.Close();
+                settingsWindow = null;
+                return;
+            }
+
+            settingsWindow = new SettingsWindow(this);
+            settingsWindow.Activate();
         }
     }
 }

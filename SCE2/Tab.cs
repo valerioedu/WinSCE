@@ -43,6 +43,10 @@ namespace SCE2
 
     public sealed partial class MainWindow : Window
     {
+
+        private List<TabInfo> openTabs = new List<TabInfo>();
+        private string activeTabId = null;
+
         private Button CreateTab(string tabText, string path = null, bool folder = false, string tabId = null)
         {
             if (string.IsNullOrEmpty(tabId))

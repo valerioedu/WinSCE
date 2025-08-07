@@ -1,26 +1,107 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
-using Windows.Foundation.Collections;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
 using System.Diagnostics;
-using Windows.Storage;
 using Windows.Storage.Pickers;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace SCE2
 {
+    public sealed partial class MainWindow : Window
+    {
+        private bool isGitPanelVisible = false;
+        private bool isDraggingGitSplitter = false;
+        private double gitPanelWidth = 380;
+        private Point lastGitPointerPosition;
+        public TextBlock GitBarTextPublic => GitBarText;
+
+
+
+        private void Git_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleGitPanel();
+            if (ExplorerPanel.Visibility == Visibility.Visible) ToggleExplorerPanel();
+        }
+
+        private void ToggleGitPanel()
+        {
+            isGitPanelVisible = !isGitPanelVisible;
+
+            if (isGitPanelVisible)
+            {
+                GitColumn.Width = new GridLength(gitPanelWidth);
+                GitPanel.Visibility = Visibility.Visible;
+                GitSplitter.Visibility = Visibility.Visible;
+
+                UpdateGitContext();
+            }
+            else
+            {
+                GitColumn.Width = new GridLength(0);
+                GitPanel.Visibility = Visibility.Collapsed;
+                GitSplitter.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void UpdateGitContext()
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(currentFilePath))
+                {
+                    GitControlPanel.SetFileContext(currentFilePath);
+                }
+                else
+                {
+                    var currentDir = System.IO.Directory.GetCurrentDirectory();
+                    GitControlPanel.SetWorkingDirectory(currentDir);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Git context update error: {ex.Message}");
+            }
+        }
+
+        private void GitSplitter_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            isDraggingGitSplitter = true;
+            lastGitPointerPosition = e.GetCurrentPoint(GitSplitter).Position;
+            GitSplitter.CapturePointer(e.Pointer);
+        }
+
+        private void GitSplitter_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (isDraggingGitSplitter)
+            {
+                var currentPosition = e.GetCurrentPoint(GitSplitter).Position;
+                var deltaX = currentPosition.X - lastGitPointerPosition.X;
+
+                var newWidth = gitPanelWidth + deltaX;
+                var windowWidth = ((FrameworkElement)this.Content).ActualWidth;
+
+                if (newWidth >= 200 && newWidth <= windowWidth / 2)
+                {
+                    gitPanelWidth = newWidth;
+                    GitColumn.Width = new GridLength(gitPanelWidth);
+                }
+
+                lastGitPointerPosition = currentPosition;
+            }
+        }
+
+        private void GitSplitter_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            isDraggingGitSplitter = false;
+            GitSplitter.ReleasePointerCapture(e.Pointer);
+        }
+    }
     public sealed partial class GitControl : UserControl
     {
         public ObservableCollection<GitFileChange> Changes { get; set; }
@@ -41,6 +122,15 @@ namespace SCE2
             ChangesListView.ItemsSource = Changes;
             BranchesListView.ItemsSource = Branches;
             CommitsListView.ItemsSource = Commits;
+
+            this.SizeChanged += GitControl_SizeChanged;
+        }
+
+        private void GitControl_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            CommitsListView.MaxWidth = this.ActualWidth * 0.9;
+            ChangesListView.MaxWidth = this.ActualWidth * 0.9;
+            BranchesListView.MaxWidth = this.ActualWidth * 0.9;
         }
 
         public void SetWorkingDirectory(string path)
@@ -136,7 +226,7 @@ namespace SCE2
                     var userOutput = await ExecuteGitCommand("config user.name");
                     var userName = !string.IsNullOrEmpty(userOutput) ? userOutput.Trim() : "unknown";
 
-                    if (mainWindow != null && mainWindow.GitBarTextPublic != null)
+                    if (mainWindow != null)
                     {
                         mainWindow.GitBarTextPublic.Text = $"{repoName}:{branchName}@{userName}";
                     }

@@ -8,12 +8,128 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
-using Windows.Storage;
-using Windows.Storage.Pickers;
+using Windows.Foundation;
 using Windows.System;
 
 namespace SCE2
 {
+    public sealed partial class MainWindow : Window
+    {
+        private bool isExplorerPanelVisible = false;
+        private bool isDraggingExplorerSplitter = false;
+        private double explorerPanelWidth = 300;
+        private Point lastExplorerPointerPosition;
+
+        public static string currentFolderPath = string.Empty;
+
+        private void ToggleExplorerPanel()
+        {
+            isExplorerPanelVisible = !isExplorerPanelVisible;
+
+            if (isExplorerPanelVisible)
+            {
+                ExplorerColumn.Width = new GridLength(explorerPanelWidth);
+                ExplorerPanel.Visibility = Visibility.Visible;
+                ExplorerSplitter.Visibility = Visibility.Visible;
+
+                FolderExplorerPanel.FileSelected += FolderExplorerPanel_FileSelected;
+            }
+            else
+            {
+                ExplorerColumn.Width = new GridLength(0);
+                ExplorerPanel.Visibility = Visibility.Collapsed;
+                ExplorerSplitter.Visibility = Visibility.Collapsed;
+
+                FolderExplorerPanel.FileSelected -= FolderExplorerPanel_FileSelected;
+            }
+        }
+
+        private void ExplorerSplitter_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            isDraggingExplorerSplitter = true;
+            lastExplorerPointerPosition = e.GetCurrentPoint(ExplorerSplitter).Position;
+            ExplorerSplitter.CapturePointer(e.Pointer);
+        }
+
+        private void ExplorerSplitter_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (isDraggingExplorerSplitter)
+            {
+                var currentPosition = e.GetCurrentPoint(ExplorerSplitter).Position;
+                var deltaX = currentPosition.X - lastExplorerPointerPosition.X;
+
+                var newWidth = explorerPanelWidth + deltaX;
+                var windowWidth = ((FrameworkElement)this.Content).ActualWidth;
+
+                if (newWidth >= 200 && newWidth <= windowWidth / 2)
+                {
+                    explorerPanelWidth = newWidth;
+                    ExplorerColumn.Width = new GridLength(explorerPanelWidth);
+                }
+
+                lastExplorerPointerPosition = currentPosition;
+            }
+        }
+
+        private void ExplorerSplitter_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            isDraggingExplorerSplitter = false;
+            ExplorerSplitter.ReleasePointerCapture(e.Pointer);
+        }
+
+        private async void FolderExplorerPanel_FileSelected(object sender, FileSelectedEventArgs e)
+        {
+            try
+            {
+                if (File.Exists(e.FilePath))
+                {
+                    foreach (var tab in openTabs.ToList())
+                    {
+                        if (tab.Saved == true && tab.IsFolder == true)
+                        {
+                            DestroyTab(tab.TabId);
+                        }
+                    }
+
+                    var filePath = e.FilePath;
+                    var fileName = Path.GetFileName(filePath);
+
+                    var file = new FileInfo(filePath);
+
+                    var text = await File.ReadAllTextAsync(filePath);
+
+                    var existingTab = openTabs.FirstOrDefault(t => t.FilePath == filePath);
+                    if (existingTab != null)
+                    {
+                        SwitchToTab(existingTab.TabId, true);
+                        return;
+                    }
+
+                    if (activeTabId != null)
+                    {
+                        SaveCurrentTabPosition();
+                    }
+
+                    CreateTab(fileName, filePath, true);
+
+                    CodeEditor.LoadText(text);
+                    currentFilePath = filePath;
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusBarText.Text = $"Error opening file: {ex.Message}";
+                System.Diagnostics.Debug.WriteLine($"Error opening file {e.FilePath}: {ex.Message}");
+            }
+        }
+
+        private void Explorer_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleExplorerPanel();
+            if (GitPanel.Visibility == Visibility.Visible) ToggleGitPanel();
+        }
+    }
+
     public sealed partial class FolderExplorerControl : UserControl
     {
         public string CurrentFolderPath { get; private set; }
