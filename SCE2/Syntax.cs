@@ -134,7 +134,7 @@ namespace SCE2
                             new SyntaxHighlights(@"(?<=<\s*)([a-zA-Z_]\w*)(?=\s*[,>])", ClassColor, ClassColor),
                             new SyntaxHighlights(@"\b([a-z][a-zA-Z_]\w*)(?=\.[a-zA-Z_]\w*\s*[\(\[])", VariableColor, VariableColor),
                             new SyntaxHighlights(@"\b(if|else|for|foreach|while|do|switch|case|in|default|break|continue|goto|return|try|catch|throw|finally|await)\b", ControlFlowColor, ControlFlowColor),
-                            new SyntaxHighlights(@"\b(int|char|float|double|decimal|string|bool|void|var|class|struct|enum|interface|namespace|using|public|private|sealed|partial|event|protected|object|readonly|get|set|internal|static|abstract|virtual|override|new|this|base|typeof|sizeof|true|false|null|async)\b", KeywordColor, KeywordColor),
+                            new SyntaxHighlights(@"\b(int|char|float|double|decimal|string|bool|void|var|class|struct|enum|interface|namespace|using|public|private|sealed|partial|event|protected|object|readonly|get|set|internal|static|abstract|virtual|override|new|this|base|typeof|sizeof|true|false|null|async|is|as|or)\b", KeywordColor, KeywordColor),
                             new SyntaxHighlights(@"""(?:[^""\\]|\\.)*""", StringColor, StringColor),
                             new SyntaxHighlights(@"@""(?:[^""]|"""")*""", StringColor, StringColor),
                             new SyntaxHighlights(@"\\[abfnrtv\\'\""]", EscapeSequenceColor, EscapeSequenceColor),
