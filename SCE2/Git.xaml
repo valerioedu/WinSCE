@@ -117,7 +117,12 @@
                                 PlaceholderText="Enter commit message..."
                                 Background="{ThemeResource SystemChromeLowColor}"
                                 BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
-                                MinHeight="60" AcceptsReturn="True" TextWrapping="Wrap"/>
+                                MinHeight="60" AcceptsReturn="True" TextWrapping="Wrap">
+                            <TextBox.Resources>
+                                <SolidColorBrush x:Key="TextControlFocusVisualPrimaryBrush" Color="Transparent"/>
+                                <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Gray"/>
+                            </TextBox.Resources>
+                        </TextBox>
 
                         <StackPanel Orientation="Horizontal" Spacing="5">
                             <Button x:Name="CommitButton" Content="Commit" FontSize="11"

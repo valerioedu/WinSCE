@@ -13,6 +13,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="AiChatControl.xaml" />
     <None Remove="FolderExplorerControl.xaml" />
     <None Remove="Git.xaml" />
     <None Remove="Icons\bash-original.png" />
@@ -76,7 +77,13 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4188" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250606001" />
+    <PackageReference Include="OpenAI" Version="2.3.0" />
     <PackageReference Include="TextControlBox.WinUI.JuliusKirsch" Version="1.1.5" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="AiChatControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Page Update="FolderExplorerControl.xaml">

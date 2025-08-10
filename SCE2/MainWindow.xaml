@@ -181,6 +181,10 @@
                         Background="Transparent" BorderThickness="0"
                         VerticalAlignment="Stretch" VerticalContentAlignment="Center"
                         HorizontalContentAlignment="Center" CornerRadius="0" Click="Terminal_Click"/>
+                <Button Content="AI Chat" Padding="8,0" Margin="2,0,0,0" FontSize="13"
+                        Background="Transparent" BorderThickness="0"
+                        VerticalAlignment="Stretch" VerticalContentAlignment="Center"
+                        HorizontalContentAlignment="Center" CornerRadius="0" Click="AIChat_Click"/>
                 <Button Content="Settings" Padding="8,0" Margin="2,0,0,0" FontSize="13"
                         Background="Transparent" BorderThickness="0"
                         VerticalAlignment="Stretch" VerticalContentAlignment="Center"
@@ -197,7 +201,29 @@
                 <ColumnDefinition x:Name="GitColumn" Width="0"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition x:Name="AIChatColumn" Width="0"/>
             </Grid.ColumnDefinitions>
+
+            <Border x:Name="ExplorerPanel" 
+                    Grid.Column="0" 
+                    Background="{ThemeResource SystemChromeLowColor}"
+                    BorderThickness="0,1,1,0" 
+                    BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                    Visibility="Collapsed">
+                <local:FolderExplorerControl x:Name="FolderExplorerPanel"/>
+            </Border>
+
+            <Border x:Name="ExplorerSplitter" 
+                    Grid.Column="1" 
+                    Width="2" 
+                    VerticalAlignment="Stretch"
+                    Background="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                    Visibility="Collapsed"
+                    ManipulationMode="TranslateX"
+                    PointerPressed="ExplorerSplitter_PointerPressed"
+                    PointerMoved="ExplorerSplitter_PointerMoved"
+                    PointerReleased="ExplorerSplitter_PointerReleased"/>
 
             <Border x:Name="GitPanel" 
                     Grid.Column="2" 
@@ -218,26 +244,6 @@
                     PointerPressed="GitSplitter_PointerPressed"
                     PointerMoved="GitSplitter_PointerMoved"
                     PointerReleased="GitSplitter_PointerReleased"/>
-
-            <Border x:Name="ExplorerPanel" 
-        Grid.Column="0" 
-        Background="{ThemeResource SystemChromeLowColor}"
-        BorderThickness="0,1,1,0" 
-        BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
-        Visibility="Collapsed">
-                <local:FolderExplorerControl x:Name="FolderExplorerPanel"/>
-            </Border>
-
-            <Border x:Name="ExplorerSplitter" 
-        Grid.Column="1" 
-        Width="2" 
-        VerticalAlignment="Stretch"
-        Background="{ThemeResource SystemControlForegroundBaseLowBrush}"
-        Visibility="Collapsed"
-        ManipulationMode="TranslateX"
-        PointerPressed="ExplorerSplitter_PointerPressed"
-        PointerMoved="ExplorerSplitter_PointerMoved"
-        PointerReleased="ExplorerSplitter_PointerReleased"/>
 
             <Grid Grid.Column="4">
                 <Grid.RowDefinitions>
@@ -292,6 +298,26 @@
                            Grid.Row="3" 
                            Visibility="Collapsed"/>
             </Grid>
+
+            <Border x:Name="AIChatSplitter" 
+                    Grid.Column="5" 
+                    Width="2" 
+                    VerticalAlignment="Stretch"
+                    Background="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                    Visibility="Collapsed"
+                    ManipulationMode="TranslateX"
+                    PointerPressed="AIChatSplitter_PointerPressed"
+                    PointerMoved="AIChatSplitter_PointerMoved"
+                    PointerReleased="AIChatSplitter_PointerReleased"/>
+
+            <Border x:Name="AIChatPanel" 
+                    Grid.Column="6" 
+                    Background="{ThemeResource SystemChromeLowColor}"
+                    BorderThickness="1,1,0,0" 
+                    BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                    Visibility="Collapsed">
+                <local:AIChatControl x:Name="AIChatControlPanel"/>
+            </Border>
         </Grid>
 
         <Border Grid.Row="2"

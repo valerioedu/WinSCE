@@ -2,6 +2,7 @@
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -139,6 +140,25 @@ namespace SCE2
                     settingsWindow.Close();
                 }
             };
+
+            HideScrollBar(CodeEditor);
+        }
+
+        private void HideScrollBar(DependencyObject parent)
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+
+                if (child is ScrollBar sb)
+                {
+                    sb.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    HideScrollBar(child);
+                }
+            }
         }
 
         private async void AppWindow_Closing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)

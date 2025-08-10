@@ -59,9 +59,14 @@
             </Style>
 
             <Style TargetType="ScrollBar">
-                <Setter Property="Width" Value="15"/>
+                <Setter Property="Width" Value="12"/>
                 <Setter Property="Visibility" Value="Visible"/>
             </Style>
+
+            <Style TargetType="TextBox">
+                    
+            </Style>
+
 
             <SolidColorBrush x:Key="ChromeHighColor" Color="{ThemeResource SystemChromeHighColor}" />
         </ResourceDictionary>   

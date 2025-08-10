@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="SCE2.AIChatControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SCE2"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Background="{ThemeResource SystemChromeLowColor}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" 
+                Background="{ThemeResource SystemChromeMediumColor}"
+                BorderThickness="0,0,0,1" 
+                BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                Padding="12,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <FontIcon FontFamily="{ThemeResource SymbolThemeFontFamily}" 
+                              Glyph="&#xE8BD;" 
+                              FontSize="16" 
+                              Margin="0,0,8,0"
+                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                    <TextBlock Text="AI Assistant" 
+                               FontWeight="SemiBold" 
+                               FontSize="14"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <Button x:Name="CloseButton" 
+                        Grid.Column="1"
+                        Content="&#xE711;" 
+                        FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                        Background="Transparent" 
+                        BorderThickness="0"
+                        Width="32" 
+                        Height="32"
+                        FontSize="12"
+                        Click="CloseButton_Click"
+                        ToolTipService.ToolTip="Close AI Chat"/>
+            </Grid>
+        </Border>
+
+        <StackPanel x:Name="LoginPanel" Grid.Row="1" Padding="12" Spacing="8">
+            <ComboBox x:Name="ModelSelector" 
+                      Header="AI Model" 
+                      PlaceholderText="Select AI Model"
+                      HorizontalAlignment="Stretch"
+                      SelectionChanged="ModelSelector_SelectionChanged">
+                <ComboBoxItem Content="Claude (Anthropic)" Tag="claude"/>
+                <ComboBoxItem Content="GPT-4 (OpenAI)" Tag="gpt4"/>
+                <ComboBoxItem Content="GPT-3.5-turbo (OpenAI)" Tag="gpt35"/>
+            </ComboBox>
+
+            <PasswordBox x:Name="ApiKeyBox" 
+                         Header="API Key" 
+                         PlaceholderText="Enter your API key"
+                         PasswordRevealMode="Peek"
+                         HorizontalAlignment="Stretch"/>
+
+            <Button x:Name="LoginButton" 
+                    Content="Connect" 
+                    HorizontalAlignment="Stretch"
+                    Style="{ThemeResource AccentButtonStyle}"
+                    Click="LoginButton_Click"/>
+
+            <TextBlock x:Name="StatusText" 
+                       Text="" 
+                       Foreground="{ThemeResource SystemErrorTextColor}"
+                       FontSize="12"
+                       TextWrapping="Wrap"
+                       Visibility="Collapsed"/>
+        </StackPanel>
+        
+        <ScrollViewer x:Name="ChatScrollViewer" 
+                      Grid.Row="2"
+                      VerticalScrollMode="Auto" 
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollMode="Disabled"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Padding="12,8"
+                      Visibility="Collapsed">
+            <StackPanel x:Name="ChatContainer" Spacing="12"/>
+        </ScrollViewer>
+
+        <StackPanel x:Name="WelcomePanel" 
+                    Grid.Row="2" 
+                    VerticalAlignment="Center" 
+                    HorizontalAlignment="Center"
+                    Padding="24"
+                    Spacing="16"
+                    Visibility="Visible">
+            <FontIcon FontFamily="{ThemeResource SymbolThemeFontFamily}" 
+                      Glyph="&#xE8BD;" 
+                      FontSize="48" 
+                      HorizontalAlignment="Center"
+                      Foreground="{ThemeResource AccentTextFillColorSecondaryBrush}"/>
+            <TextBlock Text="AI Coding Assistant" 
+                       FontSize="18" 
+                       FontWeight="SemiBold"
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="Connect to an AI model to get coding help, explanations, and suggestions." 
+                       TextWrapping="Wrap" 
+                       TextAlignment="Center"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       FontSize="14"
+                       MaxWidth="200"/>
+        </StackPanel>
+
+        <Border x:Name="TypingIndicator" 
+                Grid.Row="3" 
+                Padding="12,8"
+                Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <ProgressRing Width="16" Height="16" IsActive="True"/>
+                <TextBlock Text="AI is typing..." 
+                           FontSize="12" 
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <Border x:Name="InputPanel" 
+                Grid.Row="4" 
+                Background="{ThemeResource SystemChromeMediumColor}"
+                BorderThickness="0,1,0,0" 
+                BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                Padding="12"
+                Visibility="Collapsed">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" 
+                            Orientation="Horizontal" 
+                            Spacing="4" 
+                            Margin="0,0,0,8">
+                    <Button x:Name="ExplainCodeButton" 
+                            Content="Explain Code" 
+                            FontSize="11"
+                            Padding="8,4"
+                            Background="Transparent"
+                            BorderThickness="1"
+                            BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                            CornerRadius="12"
+                            Click="QuickAction_Click" 
+                            Tag="explain"/>
+                    <Button x:Name="FixCodeButton" 
+                            Content="Fix Issues" 
+                            FontSize="11"
+                            Padding="8,4"
+                            Background="Transparent"
+                            BorderThickness="1"
+                            BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                            CornerRadius="12"
+                            Click="QuickAction_Click" 
+                            Tag="fix"/>
+                    <Button x:Name="OptimizeCodeButton" 
+                            Content="Optimize" 
+                            FontSize="11"
+                            Padding="8,4"
+                            Background="Transparent"
+                            BorderThickness="1"
+                            BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                            CornerRadius="12"
+                            Click="QuickAction_Click" 
+                            Tag="optimize"/>
+                </StackPanel>
+
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox x:Name="MessageInput" 
+                             Grid.Column="0"
+                             PlaceholderText="Ask about your code..."
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             MaxHeight="100"
+                             VerticalAlignment="Bottom"
+                             KeyDown="MessageInput_KeyDown"
+                             CornerRadius="0"
+                             BorderThickness="1"
+                             BorderBrush="Gray"
+                             FocusVisualPrimaryBrush="Transparent">
+                             <TextBox.Resources>
+                            <SolidColorBrush x:Key="TextControlFocusVisualPrimaryBrush" Color="Transparent"/>
+                            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Gray"/>
+                        </TextBox.Resources>
+
+                    </TextBox>
+
+                    <Button x:Name="AttachCodeButton" 
+                            Grid.Column="1"
+                            Content="&#xE723;" 
+                            FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                            Background="Transparent" 
+                            BorderThickness="0"
+                            Width="32" 
+                            Height="32"
+                            Margin="4,0,0,0"
+                            Padding="0"
+                            ToolTipService.ToolTip="Include current selection"
+                            Click="AttachCodeButton_Click"/>
+
+                    <Button x:Name="SendButton" 
+                            Grid.Column="2"
+                            Content="&#xE724;" 
+                            FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                            Style="{ThemeResource AccentButtonStyle}"
+                            Width="32" 
+                            Height="32"
+                            Margin="4,0,0,0"
+                            Padding="0"
+                            Click="SendButton_Click"
+                            IsEnabled="False"/>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>
