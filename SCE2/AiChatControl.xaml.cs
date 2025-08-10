@@ -105,6 +105,8 @@ namespace SCE2
         private bool isConnected = false;
         private string currentModel = "";
         private string apiKey = "";
+        private string OpenAIKey = "";
+        private string AnthropicKey = "";
         private List<ChatMessage> chatHistory = new List<ChatMessage>();
 
         public event EventHandler CloseRequested;
@@ -130,8 +132,20 @@ namespace SCE2
             try
             {
                 var localSettings = ApplicationData.Current.LocalSettings;
+                var savedOpenAIKey = localSettings.Values["OpenAI_ApiKey"] as string;
+                var savedClaudeKey = localSettings.Values["Claude_ApiKey"] as string;
                 var savedModel = localSettings.Values["AI_Model"] as string;
                 var savedApiKey = localSettings.Values["AI_ApiKey"] as string;
+
+                if (!string.IsNullOrEmpty(savedClaudeKey))
+                {
+                    ClaudeApiKeyInput.Text = savedClaudeKey;
+                }
+
+                if (!string.IsNullOrEmpty(savedOpenAIKey))
+                {
+                    OpenAiApiKeyInput.Text = savedOpenAIKey;
+                }
 
                 if (!string.IsNullOrEmpty(savedModel))
                 {
@@ -160,7 +174,8 @@ namespace SCE2
             {
                 var localSettings = ApplicationData.Current.LocalSettings;
                 localSettings.Values["AI_Model"] = currentModel;
-                localSettings.Values["AI_ApiKey"] = apiKey;
+                localSettings.Values["Claude_ApiKey"] = apiKey;
+                localSettings.Values["OpenAI_ApiKey"] = apiKey;
             }
             catch (Exception ex)
             {
@@ -174,15 +189,15 @@ namespace SCE2
             {
                 currentModel = selectedItem.Tag.ToString();
 
-                if (currentModel == "claude") currentModel = "claude-sonnet-4-20250514";
-
                 switch (currentModel)
                 {
                     case "claude-sonnet-4-20250514":
+                    case "claude-opus-4-1-20250805":
                         ApiKeyBox.PlaceholderText = "Enter your Anthropic API key";
                         break;
-                    case "gpt4":
-                    case "gpt35":
+                    case "o3-mini":
+                    case "gpt-4.1":
+                    case "gpt-4o":
                         ApiKeyBox.PlaceholderText = "Enter your OpenAI API key";
                         break;
                 }
@@ -283,7 +298,7 @@ namespace SCE2
 
                 ChatCompletion completion = await chatClient.CompleteChatAsync(messages, new ChatCompletionOptions
                 {
-                    MaxOutputTokenCount = 10
+                    MaxOutputTokenCount = 1
                 });
 
                 return completion != null && completion.Content.Count > 0;
@@ -493,6 +508,51 @@ namespace SCE2
             InputPanel.Visibility = Visibility.Collapsed;
             ChatContainer.Children.Clear();
             chatHistory.Clear();
+        }
+
+        // 0 openai, 1 claude, eventually 2 gemini
+        private async Task TestAPIAsync(int provider)
+        {
+            if (provider == 0)
+            {
+                apiKey = OpenAIKey;
+                bool connected = await TestOpenAIConnection();
+                if (connected)
+                {
+                    SaveCredentials();
+                    isConnected = true;
+                }
+                else
+                {
+
+                }
+            }
+            else if (provider == 1)
+            {
+                apiKey = AnthropicKey;
+                bool connected = await TestClaudeConnection();
+                if (connected)
+                {
+                    SaveCredentials();
+                    isConnected = true;
+                }
+                else
+                {
+
+                }
+            }
+        }
+
+        private async void OpenAiApiKeyInput_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            OpenAIKey = OpenAiApiKeyInput.Text;
+            await TestAPIAsync(0);   
+        }
+
+        private async void ClaudeApiKeyInput_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            AnthropicKey = ClaudeApiKeyInput.Text;
+            await TestAPIAsync(1);
         }
     }
 

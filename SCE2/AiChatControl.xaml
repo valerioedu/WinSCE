@@ -26,6 +26,8 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
@@ -40,14 +42,53 @@
                                VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <Button x:Name="CloseButton" 
+                <Button x:Name="ApiKeysButton"
                         Grid.Column="1"
+                        Content="Api Keys ⏷"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Height="26"
+                        FontSize="12"
+                        Margin="2,0,2,0">
+                    <Button.Flyout>
+                        <Flyout>
+                            <StackPanel CornerRadius="0">
+                                <StackPanel Orientation="Vertical" Spacing="4">
+                                    <TextBlock Text="Claude API Key" FontSize="12"/>
+                                    <TextBox x:Name="ClaudeApiKeyInput" Width="200" PlaceholderText="Enter Claude API Key" BorderThickness="0" TextChanged="ClaudeApiKeyInput_TextChanged"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Vertical" Spacing="4" Padding="0,4,0,4">
+                                    <TextBlock Text="OpenAI API Key" FontSize="12"/>
+                                    <TextBox x:Name="OpenAiApiKeyInput" Width="200" PlaceholderText="Enter OpenAI API Key" BorderThickness="0" TextChanged="OpenAiApiKeyInput_TextChanged"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+
+                </Button>
+
+                <Button x:Name="SettingsButton"
+                        Grid.Column="2"
+                        Content="&#xE713;"
+                        Background="Transparent"
+                        FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                        BorderThickness="0"
+                        Margin="0"
+                        Padding="0"
+                        Width="26" 
+                        Height="26"
+                        FontSize="12"/>
+
+                <Button x:Name="CloseButton" 
+                        Grid.Column="3"
                         Content="&#xE711;" 
                         FontFamily="{ThemeResource SymbolThemeFontFamily}"
                         Background="Transparent" 
                         BorderThickness="0"
-                        Width="32" 
-                        Height="32"
+                        Margin="0"
+                        Padding="0"
+                        Width="26" 
+                        Height="26"
                         FontSize="12"
                         Click="CloseButton_Click"
                         ToolTipService.ToolTip="Close AI Chat"/>
@@ -60,9 +101,11 @@
                       PlaceholderText="Select AI Model"
                       HorizontalAlignment="Stretch"
                       SelectionChanged="ModelSelector_SelectionChanged">
-                <ComboBoxItem Content="Claude (Anthropic)" Tag="claude"/>
-                <ComboBoxItem Content="GPT-4 (OpenAI)" Tag="gpt4"/>
-                <ComboBoxItem Content="GPT-3.5-turbo (OpenAI)" Tag="gpt35"/>
+                <ComboBoxItem Content="Claude Opus 4.1" Tag="claude-opus-4-1-20250805"/>
+                <ComboBoxItem Content="Claude Sonnet 4.0" Tag="claude-sonnet-4-20250514"/>
+                <ComboBoxItem Content="o3-mini" Tag="o3-mini"/>
+                <ComboBoxItem Content="GPT 4.1" Tag="gpt-4.1"/>
+                <ComboBoxItem Content="GPT-4o" Tag="gpt-4o"/>
             </ComboBox>
 
             <PasswordBox x:Name="ApiKeyBox" 
@@ -142,6 +185,8 @@
                 Visibility="Collapsed">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
@@ -232,6 +277,32 @@
                             Padding="0"
                             Click="SendButton_Click"
                             IsEnabled="False"/>
+                </Grid>
+
+                <Grid Grid.Row="2" Height="10"/>
+
+                <Grid Grid.Row="3">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ComboBox x:Name="Model2Selector" 
+                              PlaceholderText="Select AI Model"
+                              HorizontalAlignment="Stretch"
+                              SelectionChanged="ModelSelector_SelectionChanged"
+                              Background="Transparent"
+                              BorderThickness="0"
+                              Padding="8,0,0,0"
+                              Margin="0"
+                              CornerRadius="0">
+                        <ComboBoxItem Content="Claude Opus 4.1" Tag="claude-opus-4-1-20250805"/>
+                        <ComboBoxItem Content="Claude Sonnet 4.0" Tag="claude-sonnet-4-20250514"/>
+                        <ComboBoxItem Content="o3-mini" Tag="o3-mini"/>
+                        <ComboBoxItem Content="GPT 4.1" Tag="gpt-4.1"/>
+                        <ComboBoxItem Content="GPT-4o" Tag="gpt-4o"/>
+                    </ComboBox>
                 </Grid>
             </Grid>
         </Border>
