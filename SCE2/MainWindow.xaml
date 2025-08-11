@@ -21,6 +21,7 @@
         <Grid x:Name="CustomTitleBar" Grid.Row="0" Background="{ThemeResource SystemChromeLowColor}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
@@ -185,13 +186,17 @@
                         Background="Transparent" BorderThickness="0"
                         VerticalAlignment="Stretch" VerticalContentAlignment="Center"
                         HorizontalContentAlignment="Center" CornerRadius="0" Click="AIChat_Click"/>
-                <Button Content="Settings" Padding="8,0" Margin="2,0,0,0" FontSize="13"
-                        Background="Transparent" BorderThickness="0"
-                        VerticalAlignment="Stretch" VerticalContentAlignment="Center"
-                        HorizontalContentAlignment="Center" CornerRadius="0" Click="Settings_Click"/>
             </StackPanel>
 
-            <Grid Grid.Column="1" MinWidth="138"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Stretch" HorizontalAlignment="Right">
+                <Button Content="&#xE713;" Padding="8,0" Margin="0,0,0,0" FontSize="13"
+                        Background="Transparent" BorderThickness="0"
+                        VerticalAlignment="Stretch" VerticalContentAlignment="Center"
+                        HorizontalContentAlignment="Center" CornerRadius="0" Click="Settings_Click"
+                        FontFamily="{ThemeResource SymbolThemeFontFamily}"/>
+            </StackPanel>
+
+            <Grid Grid.Column="2" MinWidth="138"/>
         </Grid>
 
         <Grid Grid.Row="1" Background="{ThemeResource SystemChromeLowColor}">

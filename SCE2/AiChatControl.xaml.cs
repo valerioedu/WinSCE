@@ -116,6 +116,18 @@ namespace SCE2
             this.InitializeComponent();
             LoadSavedCredentials();
 
+            if (isConnected)
+            {
+                SaveCredentials();
+                isConnected = true;
+
+                WelcomePanel.Visibility = Visibility.Collapsed;
+                ChatScrollViewer.Visibility = Visibility.Visible;
+                InputPanel.Visibility = Visibility.Visible;
+
+                AddWelcomeMessage();
+            }
+
             MessageInput.TextChanged += (s, e) =>
             {
                 SendButton.IsEnabled = !string.IsNullOrWhiteSpace(MessageInput.Text) && isConnected;
@@ -135,31 +147,40 @@ namespace SCE2
                 var savedOpenAIKey = localSettings.Values["OpenAI_ApiKey"] as string;
                 var savedClaudeKey = localSettings.Values["Claude_ApiKey"] as string;
                 var savedModel = localSettings.Values["AI_Model"] as string;
-                var savedApiKey = localSettings.Values["AI_ApiKey"] as string;
 
                 if (!string.IsNullOrEmpty(savedClaudeKey))
                 {
                     ClaudeApiKeyInput.Text = savedClaudeKey;
+                    AnthropicKey = savedClaudeKey;
+                    isConnected = true;
                 }
 
                 if (!string.IsNullOrEmpty(savedOpenAIKey))
                 {
                     OpenAiApiKeyInput.Text = savedOpenAIKey;
+                    OpenAIKey = savedOpenAIKey;
+                    isConnected = true;
                 }
 
                 if (!string.IsNullOrEmpty(savedModel))
                 {
+                    currentModel = savedModel;
+
+                    if (savedModel.Contains("claude") && !string.IsNullOrEmpty(AnthropicKey))
+                    {
+                        apiKey = AnthropicKey;
+                    }
+                    else if (!string.IsNullOrEmpty(OpenAIKey))
+                    {
+                        apiKey = OpenAIKey;
+                    }
+
                     var item = ModelSelector.Items.Cast<ComboBoxItem>()
                         .FirstOrDefault(i => i.Tag.ToString() == savedModel);
                     if (item != null)
                     {
                         ModelSelector.SelectedItem = item;
                     }
-                }
-
-                if (!string.IsNullOrEmpty(savedApiKey))
-                {
-                    ApiKeyBox.Password = savedApiKey;
                 }
             }
             catch (Exception ex)
@@ -174,8 +195,11 @@ namespace SCE2
             {
                 var localSettings = ApplicationData.Current.LocalSettings;
                 localSettings.Values["AI_Model"] = currentModel;
-                localSettings.Values["Claude_ApiKey"] = apiKey;
-                localSettings.Values["OpenAI_ApiKey"] = apiKey;
+
+                if (!string.IsNullOrEmpty(AnthropicKey))
+                    localSettings.Values["Claude_ApiKey"] = AnthropicKey;
+                if (!string.IsNullOrEmpty(OpenAIKey))
+                    localSettings.Values["OpenAI_ApiKey"] = OpenAIKey;
             }
             catch (Exception ex)
             {
@@ -188,95 +212,6 @@ namespace SCE2
             if (ModelSelector.SelectedItem is ComboBoxItem selectedItem)
             {
                 currentModel = selectedItem.Tag.ToString();
-
-                switch (currentModel)
-                {
-                    case "claude-sonnet-4-20250514":
-                    case "claude-opus-4-1-20250805":
-                        ApiKeyBox.PlaceholderText = "Enter your Anthropic API key";
-                        break;
-                    case "o3-mini":
-                    case "gpt-4.1":
-                    case "gpt-4o":
-                        ApiKeyBox.PlaceholderText = "Enter your OpenAI API key";
-                        break;
-                }
-            }
-        }
-
-        private async void LoginButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (string.IsNullOrEmpty(currentModel))
-            {
-                ShowStatus("Please select an AI model.", true);
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(ApiKeyBox.Password))
-            {
-                ShowStatus("Please enter your API key.", true);
-                return;
-            }
-
-            apiKey = ApiKeyBox.Password;
-            LoginButton.IsEnabled = false;
-            LoginButton.Content = "Connecting...";
-
-            try
-            {
-                bool connectionSuccess = await TestConnection();
-
-                if (connectionSuccess)
-                {
-                    isConnected = true;
-                    SaveCredentials();
-
-                    LoginPanel.Visibility = Visibility.Collapsed;
-                    WelcomePanel.Visibility = Visibility.Collapsed;
-                    ChatScrollViewer.Visibility = Visibility.Visible;
-                    InputPanel.Visibility = Visibility.Visible;
-
-                    AddWelcomeMessage();
-
-                    ShowStatus("Connected successfully!", false);
-                    MessageInput.Focus(FocusState.Keyboard);
-                }
-                else
-                {
-                    ShowStatus("Failed to connect. Please check your API key.", true);
-                }
-            }
-            catch (Exception ex)
-            {
-                ShowStatus($"Connection error: {ex.Message}", true);
-            }
-            finally
-            {
-                LoginButton.IsEnabled = true;
-                LoginButton.Content = "Connect";
-            }
-        }
-
-        private async Task<bool> TestConnection()
-        {
-            try
-            {
-                switch (currentModel)
-                {
-                    case "claude":
-                    case "claude-sonnet-4-20250514":
-                        return await TestClaudeConnection();
-                    case "gpt4":
-                    case "gpt35":
-                        currentModel = "gpt-4o";
-                        return await TestOpenAIConnection();
-                    default:
-                        return false;
-                }
-            }
-            catch
-            {
-                return false;
             }
         }
 
@@ -357,7 +292,7 @@ namespace SCE2
             {
                 CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(12, 8, 12, 8),
-                Background = role == "user" ? new SolidColorBrush(Colors.Gray) : null,
+                Background = role == "user" ? new SolidColorBrush(Color.FromArgb(255, 64, 64, 64)) : null,
                 HorizontalAlignment = role == "user" ? HorizontalAlignment.Right : HorizontalAlignment.Left,
                 MaxWidth = 300,
                 Margin = new Thickness(role == "user" ? 50 : 0, 0, role == "user" ? 0 : 50, 0)
@@ -369,7 +304,7 @@ namespace SCE2
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 14,
                 Foreground = role == "user" ?
-                    (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextOnAccentFillColorSecondaryBrush"] :
+                    new SolidColorBrush(Colors.White) :
                     (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]
             };
 
@@ -416,21 +351,33 @@ namespace SCE2
 
         private async Task<string> GetAIResponse(string message)
         {
-            if (currentModel == "claude-sonnet-4-20250514")
+            if (currentModel == "claude-sonnet-4-20250514" || currentModel == "claude-opus-4-1-20250805")
             {
                 var client = new OpenAIClient(new ApiKeyCredential(apiKey), new OpenAIClientOptions
                 {
                     Endpoint = new Uri("https://api.anthropic.com/v1")
                 });
 
+                var messages = new List<UserChatMessage>
+                {
+                    new UserChatMessage(message)
+                };
+
+
                 ChatClient chatClient = client.GetChatClient(currentModel);
-                ChatCompletion completion = chatClient.CompleteChat(message);
+                ChatCompletion completion = await chatClient.CompleteChatAsync(messages);
                 return completion.Content[0].Text;
             }
             else
             {
                 ChatClient chatClient = new(model: currentModel, credential: new ApiKeyCredential(apiKey));
-                ChatCompletion completion = chatClient.CompleteChat(message);
+
+                var messages = new List<UserChatMessage>
+                {
+                    new UserChatMessage(message)
+                };
+
+                ChatCompletion completion = await chatClient.CompleteChatAsync(message);
                 return completion.Content[0].Text;
             }
         }
@@ -502,57 +449,177 @@ namespace SCE2
         public void Disconnect()
         {
             isConnected = false;
-            LoginPanel.Visibility = Visibility.Visible;
-            WelcomePanel.Visibility = Visibility.Visible;
-            ChatScrollViewer.Visibility = Visibility.Collapsed;
-            InputPanel.Visibility = Visibility.Collapsed;
+            currentModel = "";
+            apiKey = "";
+            OpenAIKey = "";
+            AnthropicKey = "";
+
+            if (OpenAiApiKeyInput != null)
+                OpenAiApiKeyInput.Text = "";
+            if (ClaudeApiKeyInput != null)
+                ClaudeApiKeyInput.Text = "";
+
+            if (ModelSelector != null)
+                ModelSelector.SelectedItem = null;
+
+            if (LoginPanel != null)
+                LoginPanel.Visibility = Visibility.Visible;
+            if (WelcomePanel != null)
+                WelcomePanel.Visibility = Visibility.Visible;
+            if (ChatScrollViewer != null)
+                ChatScrollViewer.Visibility = Visibility.Collapsed;
+            if (InputPanel != null)
+                InputPanel.Visibility = Visibility.Collapsed;
+
             ChatContainer.Children.Clear();
             chatHistory.Clear();
+
+            if (SendButton != null && MessageInput != null)
+                SendButton.IsEnabled = !string.IsNullOrWhiteSpace(MessageInput.Text) && isConnected;
+
+            try
+            {
+                var localSettings = ApplicationData.Current.LocalSettings;
+                localSettings.Values.Remove("AI_Model");
+                localSettings.Values.Remove("OpenAI_ApiKey");
+                localSettings.Values.Remove("Claude_ApiKey");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error clearing credentials: {ex.Message}");
+            }
         }
 
         // 0 openai, 1 claude, eventually 2 gemini
         private async Task TestAPIAsync(int provider)
         {
-            if (provider == 0)
+            try
             {
-                apiKey = OpenAIKey;
-                bool connected = await TestOpenAIConnection();
+                bool connected = false;
+
+                if (provider == 0)
+                {
+                    apiKey = OpenAIKey;
+                    connected = await TestOpenAIConnection();
+                }
+                else if (provider == 1)
+                {
+                    apiKey = AnthropicKey;
+                    connected = await TestClaudeConnection();
+                }
+
                 if (connected)
                 {
                     SaveCredentials();
                     isConnected = true;
+
+                    if (provider == 0)
+                    {
+                        OpenAIKey = OpenAiApiKeyInput.Text;
+                    }
+                    else if (provider == 1)
+                    {
+                        AnthropicKey = ClaudeApiKeyInput.Text;
+                    }
+
+                    WelcomePanel.Visibility = Visibility.Collapsed;
+                    ChatScrollViewer.Visibility = Visibility.Visible;
+                    InputPanel.Visibility = Visibility.Visible;
+
+                    AddWelcomeMessage();
+                    ShowStatus("Connected successfully!", false);
                 }
                 else
                 {
-
+                    ShowStatus("Failed to connect. Please check your API key.", true);
                 }
             }
-            else if (provider == 1)
+            catch (Exception ex)
             {
-                apiKey = AnthropicKey;
-                bool connected = await TestClaudeConnection();
-                if (connected)
-                {
-                    SaveCredentials();
-                    isConnected = true;
-                }
-                else
-                {
-
-                }
+                ShowStatus($"Connection error: {ex.Message}", true);
             }
         }
 
-        private async void OpenAiApiKeyInput_TextChanged(object sender, TextChangedEventArgs e)
+        private void OpenAiApiKeyInput_TextChanged(object sender, TextChangedEventArgs e)
         {
             OpenAIKey = OpenAiApiKeyInput.Text;
-            await TestAPIAsync(0);   
         }
 
-        private async void ClaudeApiKeyInput_TextChanged(object sender, TextChangedEventArgs e)
+        private void ClaudeApiKeyInput_TextChanged(object sender, TextChangedEventArgs e)
         {
             AnthropicKey = ClaudeApiKeyInput.Text;
-            await TestAPIAsync(1);
+        }
+
+        private async void ClaudeApiKeyInput_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            if (e.Key == VirtualKey.Enter && !string.IsNullOrWhiteSpace(AnthropicKey))
+            {
+                e.Handled = true;
+                await TestAPIAsync(1);
+            }
+        }
+
+        private async void OpenAiApiKeyInput_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            if (e.Key == VirtualKey.Enter && !string.IsNullOrWhiteSpace(OpenAIKey))
+            {
+                e.Handled = true;
+                await TestAPIAsync(0);
+            }
+        }
+
+        private void DisconnectButton_Click(object sender, RoutedEventArgs e)
+        {
+            Disconnect();
+
+        }
+
+        private void DisconnectOpenAIButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (currentModel.Contains("gpt"))
+            {
+                currentModel = "";
+                apiKey = "";
+                isConnected = false;
+            }
+
+            OpenAIKey = OpenAiApiKeyInput.Text = "";
+
+            var localSettings = ApplicationData.Current.LocalSettings;
+            localSettings.Values.Remove("OpenAI_ApiKey");
+
+            if (string.IsNullOrEmpty(AnthropicKey))
+            {
+                Disconnect();
+            }
+            else
+            {
+                SaveCredentials();
+            }
+        }
+
+        private void DisconnectClaudeButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (currentModel.Contains("claude"))
+            {
+                currentModel = "";
+                apiKey = "";
+                isConnected = false;
+            }
+
+            AnthropicKey = ClaudeApiKeyInput.Text = "";
+
+            var localSettings = ApplicationData.Current.LocalSettings;
+            localSettings.Values.Remove("Claude_ApiKey");
+
+            if (string.IsNullOrEmpty(OpenAIKey))
+            {
+                Disconnect();
+            }
+            else
+            {
+                SaveCredentials();
+            }
         }
     }
 

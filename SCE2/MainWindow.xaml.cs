@@ -141,7 +141,7 @@ namespace SCE2
                 }
             };
 
-            HideScrollBar(CodeEditor);
+            //HideScrollBar(CodeEditor);
         }
 
         private void HideScrollBar(DependencyObject parent)
