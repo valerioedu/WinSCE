@@ -60,7 +60,6 @@ namespace SCE2
             appWindow.Closing += AppWindow_Closing;
 
             CursorSize cursorSize = CodeEditor.CursorSize;
-            CodeEditor.Focus(FocusState.Keyboard);
 
             this.SetTitleBar(CustomTitleBar);
 

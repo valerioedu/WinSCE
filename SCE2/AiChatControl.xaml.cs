@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using OpenAI;
 using OpenAI.Chat;
+using OpenAI.Files;
 using System;
 using System.ClientModel;
 using System.Collections.Generic;
@@ -277,11 +278,40 @@ namespace SCE2
         private void AddWelcomeMessage()
         {
             var modelName = ModelSelector.SelectedItem as ComboBoxItem;
-            var welcomeText = $"Connected to {modelName?.Content}! I'm ready to help you with your code. You can:\n\n" +
-                            "• Ask questions about your code\n" +
-                            "• Request explanations or improvements\n" +
-                            "• Get help with debugging\n" +
-                            "• Use the quick action buttons below";
+            string temp = "";
+            if (modelName?.Content == null && string.IsNullOrEmpty(currentModel))
+            {
+                if (!string.IsNullOrEmpty(ClaudeApiKeyInput.Text))
+                {
+                    temp = "Claude";
+                }
+                else if (!string.IsNullOrEmpty(OpenAiApiKeyInput.Text))
+                {
+                    temp = "Gpt";
+                }
+                else
+                {
+                    temp = "Gpt and Claude";
+                }
+            }
+            else
+            {
+                temp = modelName.Content.ToString();
+            }
+
+            var welcomeText = $"Connected to {temp}! I'm ready to help you with your code. You can:\n\n" +
+                                "• Ask questions about your code\n" +
+                                "• Request explanations or improvements\n" +
+                                "• Get help with debugging\n";
+
+            if (modelName != null && temp != modelName.Content.ToString())
+            {
+                welcomeText += "\nBefore starting, select the model from the button below!";
+            }
+            else if (modelName == null)
+            {
+                welcomeText += "\nBefore starting, select the model from the button below!";
+            }
 
             AddMessage("assistant", welcomeText);
         }
@@ -414,7 +444,7 @@ namespace SCE2
 
         private void QuickAction_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button button && button.Tag is string action)
+            if (sender is MenuFlyoutItem button && button.Tag is string action)
             {
                 string message = action switch
                 {
@@ -557,6 +587,9 @@ namespace SCE2
                 e.Handled = true;
                 await TestAPIAsync(1);
             }
+
+            if (ClaudeApiKeyInput.FocusState == FocusState.Keyboard)
+                ClaudeApiKeyInput.Focus(FocusState.Unfocused);
         }
 
         private async void OpenAiApiKeyInput_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
@@ -571,7 +604,6 @@ namespace SCE2
         private void DisconnectButton_Click(object sender, RoutedEventArgs e)
         {
             Disconnect();
-
         }
 
         private void DisconnectOpenAIButton_Click(object sender, RoutedEventArgs e)
